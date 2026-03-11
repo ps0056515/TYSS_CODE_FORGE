@@ -284,7 +284,7 @@ export function ProblemClient({
           )}
           {language === "javascript" && (
             <ul className="list-disc list-inside space-y-1">
-              <li>Use <code>fs.readFileSync(0,"utf8")</code> to read stdin.</li>
+              <li>Use <code>{`fs.readFileSync(0, "utf8")`}</code> to read stdin.</li>
               <li>Avoid console logs other than the final answer.</li>
             </ul>
           )}

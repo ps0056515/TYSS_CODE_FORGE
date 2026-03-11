@@ -2,22 +2,29 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
+  darkMode: "class",
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "Consolas", "monospace"],
+      },
       colors: {
-        bg: "#0B0B0F",
-        card: "#111118",
-        border: "rgba(255,255,255,0.10)",
-        text: "#EDEDF3",
-        muted: "rgba(237,237,243,0.70)",
-        brand: "#6D5EF1"
+        bg: "var(--cf-bg)",
+        card: "var(--cf-card)",
+        border: "var(--cf-border)",
+        text: "var(--cf-text)",
+        muted: "var(--cf-muted)",
+        brand: "var(--cf-brand)",
+        "brand-muted": "var(--cf-brand-muted)",
       },
       boxShadow: {
-        soft: "0 10px 30px rgba(0,0,0,0.35)"
-      }
-    }
+        soft: "0 10px 30px rgba(0,0,0,0.35)",
+        glow: "0 0 24px rgba(109,94,241,0.2)",
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };
 
 export default config;

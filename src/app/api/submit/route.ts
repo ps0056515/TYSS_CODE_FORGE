@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         for (const t of st.tests) {
           const r = await runOne(t.input, t.output);
           if (!r.ok) {
-            verdict = r.kind;
+            verdict = (r as { kind: "RE" | "TLE" }).kind;
             subtaskPass = false;
             break;
           }
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
       for (const t of hidden) {
         const r = await runOne(t.input, t.output);
         if (!r.ok) {
-          verdict = r.kind;
+          verdict = (r as { kind: "RE" | "TLE" }).kind;
           break;
         }
         if (!r.pass) {

@@ -2,20 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Light theme (default) */
 :root {
+  --cf-bg: #f4f4f6;
+  --cf-card: #ffffff;
+  --cf-border: rgba(0, 0, 0, 0.12);
+  --cf-text: #1a1a1e;
+  --cf-muted: rgba(26, 26, 30, 0.7);
+  --cf-brand: #5b4cdb;
+  --cf-brand-muted: rgba(91, 76, 219, 0.12);
+  color-scheme: light;
+}
+
+/* Dark theme */
+.dark {
+  --cf-bg: #0B0B0F;
+  --cf-card: #111118;
+  --cf-border: rgba(255, 255, 255, 0.10);
+  --cf-text: #EDEDF3;
+  --cf-muted: rgba(237, 237, 243, 0.70);
+  --cf-brand: #6D5EF1;
+  --cf-brand-muted: rgba(109, 94, 241, 0.15);
+  --cf-input-bg: rgba(0, 0, 0, 0.4);
   color-scheme: dark;
+}
+
+:root {
+  --cf-input-bg: rgba(0, 0, 0, 0.06);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 html,
 body {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
-  @apply bg-bg text-text antialiased;
+  @apply bg-bg text-text antialiased font-sans;
+  background-image: radial-gradient(ellipse 80% 50% at 50% -20%, var(--cf-brand-muted), transparent);
 }
 
 * {
-  @apply border-border;
+  border-color: var(--cf-border);
+}
+
+/* Focus ring for keyboard nav */
+a:focus-visible,
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--cf-bg), 0 0 0 4px var(--cf-brand);
 }
 
