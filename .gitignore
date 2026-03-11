@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build
+.next/
+out/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Archives
+*.tar.gz
+*.zip
+
+# Optional: keep data/ for problems/submissions; uncomment to ignore
+# data/

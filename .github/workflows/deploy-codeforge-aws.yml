@@ -1,0 +1,40 @@
+# Deploy CodeForge to AWS VM on every push to main.
+# Requires GitHub secrets: CODEFORGE_AWS_HOST, CODEFORGE_SSH_KEY
+# Optional: CODEFORGE_DEPLOY_PATH (default: /opt/codeforge), CODEFORGE_SSH_USER (default: ubuntu)
+
+name: Deploy CodeForge to AWS VM
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy CodeForge to AWS VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.CODEFORGE_AWS_HOST }}
+          username: ${{ secrets.CODEFORGE_SSH_USER || 'ubuntu' }}
+          key: ${{ secrets.CODEFORGE_SSH_KEY }}
+          envs: CODEFORGE_DEPLOY_PATH
+          script_stop: true
+          script: |
+            set -e
+            DEPLOY_PATH="${CODEFORGE_DEPLOY_PATH:-/opt/codeforge}"
+            cd "$DEPLOY_PATH"
+            git fetch origin main
+            git reset --hard origin/main
+            npm ci
+            npm run build
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 restart codeforge --update-env || pm2 start npm --name codeforge -- run start
+            elif systemctl is-active --quiet codeforge 2>/dev/null; then
+              sudo systemctl restart codeforge
+            else
+              echo "Build complete. Start app manually (e.g. pm2 or systemd)."
+            fi
+            echo "CodeForge deploy finished."
+        env:
+          CODEFORGE_DEPLOY_PATH: ${{ secrets.CODEFORGE_DEPLOY_PATH }}
