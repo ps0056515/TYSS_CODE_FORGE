@@ -7,7 +7,7 @@ CodeForge is a **CodeChef-style coder platform MVP**: landing page, courses, pra
 ```bash
 cd apps/codeforge
 npm install
-npm run dev
+npm run dev OR nohup npm run dev > web.log 2>&1 & disown
 ```
 
 Then open `http://localhost:3001`.
