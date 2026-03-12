@@ -3,11 +3,19 @@ import { USER_COOKIE } from "@/lib/auth";
 
 /**
  * Clears the CodeForge user cookie and redirects to NextAuth signout so both sessions are cleared.
- * Always use the request origin for the post-signout callback so the user stays on the same host
- * (e.g. EC2 URL), not NEXTAUTH_URL which may be localhost in production.
+ * Uses the client-facing host (from headers) so sign-out works on EC2/proxy; req.url can be localhost internally.
  */
+function getOriginFromRequest(req: Request): string {
+  const url = new URL(req.url);
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const host = forwardedHost ?? req.headers.get("host") ?? url.host;
+  const proto = forwardedProto ?? (url.protocol === "https:" ? "https" : "http");
+  return `${proto}://${host}`;
+}
+
 export async function GET(req: Request) {
-  const origin = new URL(req.url).origin;
+  const origin = getOriginFromRequest(req);
   const res = NextResponse.redirect(
     `${origin}/api/auth/signout?callbackUrl=${encodeURIComponent(origin)}`
   );
