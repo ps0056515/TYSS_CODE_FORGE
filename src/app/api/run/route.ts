@@ -88,13 +88,20 @@ async function runPython(code: string, input: string) {
   const file = path.join(dir, "main.py");
   await fs.writeFile(file, code, "utf8");
 
-  // Windows-friendly: try `python`, then fallback to `py -3`
-  const first = await runProcess("python", [file], input);
-  if (!first.ok && /not recognized|ENOENT/i.test(first.stderr)) {
-    const second = await runProcess("py", ["-3", file], input);
-    return second;
+  const isWin = os.platform() === "win32";
+  // Linux/Ubuntu: use python3 (standard). Windows: try python, then py -3
+  if (isWin) {
+    const first = await runProcess("python", [file], input);
+    if (!first.ok && /not recognized|ENOENT/i.test(first.stderr)) {
+      return await runProcess("py", ["-3", file], input);
+    }
+    return first;
   }
-
+  // Linux / macOS: prefer python3, fallback to python
+  const first = await runProcess("python3", [file], input);
+  if (!first.ok && /not found|ENOENT|no such file/i.test(first.stderr)) {
+    return await runProcess("python", [file], input);
+  }
   return first;
 }
 
