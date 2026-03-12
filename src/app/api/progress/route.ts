@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getUser } from "@/lib/auth";
+import { getUserAsync, USER_COOKIE } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,7 @@ function toVerdict(s: Line) {
 }
 
 export async function GET() {
-  const user = getUser();
+  const user = await getUserAsync();
   if (!user) return NextResponse.json({ ok: true, user: null, solved: [], counts: { ac: 0, total: 0 } });
 
   const file = path.join(process.cwd(), "data", "submissions.jsonl");
@@ -49,11 +49,13 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     ok: true,
     user,
     solved: Array.from(solved.values()),
     counts: { ac, total }
   });
+  res.cookies.set(USER_COOKIE, user, { path: "/", sameSite: "lax", maxAge: 30 * 24 * 60 * 60 });
+  return res;
 }
 

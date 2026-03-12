@@ -1,11 +1,14 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { problems as builtInProblems, type Problem } from "@/lib/data";
+import { problems as builtInProblems, type Problem, type UseCase, type RunConfig } from "@/lib/data";
 
 export type CustomProblemInput = Pick<Problem, "title" | "difficulty" | "tags" | "languages"> & {
   slug?: string;
   statement?: string;
   examples?: Problem["examples"];
+  type?: Problem["type"];
+  useCases?: UseCase[];
+  runConfig?: RunConfig;
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -66,7 +69,10 @@ export async function addProblem(input: CustomProblemInput): Promise<Problem> {
     tags: input.tags,
     languages: input.languages,
     statement: input.statement?.trim() || "Statement coming soon.",
-    examples: input.examples ?? []
+    examples: input.examples ?? [],
+    type: input.type ?? "algorithm",
+    useCases: input.useCases ?? undefined,
+    runConfig: input.runConfig ?? undefined
   };
 
   custom.push(problem);

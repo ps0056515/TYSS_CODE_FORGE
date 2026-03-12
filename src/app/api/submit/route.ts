@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendSubmission } from "@/lib/submissions";
 import { getProblemBySlug } from "@/lib/problems_store";
-import { getUser } from "@/lib/auth";
+import { getUserAsync, USER_COOKIE } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -26,13 +26,22 @@ export async function POST(req: Request) {
     }
 
     const s = parsed.data;
-    const user = getUser();
+    const user = await getUserAsync();
     if (!user) {
       return NextResponse.json({ ok: false, stderr: "Not signed in" }, { status: 401 });
     }
     const problem = await getProblemBySlug(s.problemSlug);
     if (!problem) {
       return NextResponse.json({ ok: false, stderr: "Problem not found" }, { status: 404 });
+    }
+
+    // Project problems (type === "project"): would run runConfig.testCommand against uploaded
+    // codebase, read result.json for useCaseResults + score. Not implemented yet — see docs/EVALUATION_LOGIC.md.
+    if (problem.type === "project") {
+      return NextResponse.json(
+        { ok: false, stderr: "Project submission (ZIP/codebase) is not supported yet. Use algorithm problems." },
+        { status: 400 }
+      );
     }
 
     const norm = (x: string) => (x ?? "").replace(/\r\n/g, "\n").trim();
@@ -120,7 +129,9 @@ export async function POST(req: Request) {
       samplesPass: s.samplesPass
     });
 
-    return NextResponse.json({ ok: true, verdict, score });
+    const res = NextResponse.json({ ok: true, verdict, score });
+    res.cookies.set(USER_COOKIE, user, { path: "/", sameSite: "lax", maxAge: 30 * 24 * 60 * 60 });
+    return res;
   } catch {
     return NextResponse.json({ ok: false, stderr: "Server error" }, { status: 500 });
   }

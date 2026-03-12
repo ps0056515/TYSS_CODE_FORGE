@@ -1,6 +1,14 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
+/** Per–use-case result for project submissions */
+export type UseCaseResult = {
+  id: string;
+  title: string;
+  passed: boolean;
+  message?: string;
+};
+
 export type Submission = {
   id: string;
   createdAt: string;
@@ -11,6 +19,13 @@ export type Submission = {
   score: number; // 0..100
   code: string;
   samplesPass?: boolean;
+  /** "algorithm" = single-file; "project" = codebase (ZIP) assessed by use-case tests */
+  submissionType?: "algorithm" | "project";
+  /** For submissionType === "project": per–use-case pass/fail and optional code quality. */
+  projectResult?: {
+    useCaseResults: UseCaseResult[];
+    codeQuality?: { score: number; summary?: string };
+  };
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");

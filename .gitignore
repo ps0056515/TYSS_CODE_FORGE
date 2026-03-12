@@ -26,3 +26,9 @@ logs/
 
 # Optional: keep data/ for problems/submissions; uncomment to ignore
 # data/
+
+# Local/runtime artifacts (do not commit)
+test-results/
+playwright-report/
+tsconfig.tsbuildinfo
+data/submissions.jsonl

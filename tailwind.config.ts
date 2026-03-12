@@ -9,6 +9,9 @@ const config: Config = {
         sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "Consolas", "monospace"],
       },
+      fontSize: {
+        "readable": ["0.9375rem", { lineHeight: "1.5" }],
+      },
       colors: {
         bg: "var(--cf-bg)",
         card: "var(--cf-card)",

@@ -3,14 +3,12 @@
     "slug": "reverse-a-string",
     "title": "Reverse a string",
     "difficulty": "Easy",
-    "tags": [
-      "basics"
-    ],
-    "languages": [
-      "javascript",
-      "java"
-    ],
-    "statement": "Reverse a Strgin",
-    "examples": []
+    "tags": ["strings", "basics", "loops"],
+    "languages": ["javascript", "python", "java", "cpp"],
+    "statement": "Given a string s, output the string reversed. Example: \"hello\" → \"olleh\".",
+    "examples": [
+      { "input": "hello", "output": "olleh" },
+      { "input": "Code", "output": "edoC" }
+    ]
   }
 ]

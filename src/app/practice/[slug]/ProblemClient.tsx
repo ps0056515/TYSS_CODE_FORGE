@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Play, ListChecks, Lightbulb } from "lucide-react";
-import { Button, Card } from "@/components/ui";
+import { Play, ListChecks, Send, Upload, FileArchive } from "lucide-react";
+import { Button } from "@/components/ui";
 import Editor from "@monaco-editor/react";
+import { cn } from "@/lib/cn";
 
 type Lang = "javascript" | "python" | "java" | "cpp";
 
@@ -14,22 +15,50 @@ const LANG_LABEL: Record<Lang, string> = {
   cpp: "C++"
 };
 
+type Verdict = "AC" | "PARTIAL" | "WA" | "RE" | "TLE";
+
+function verdictLabel(v: string | null | undefined): string {
+  switch (v) {
+    case "AC": return "Accepted";
+    case "WA": return "Wrong Answer";
+    case "RE": return "Compilation / Runtime Error";
+    case "TLE": return "Time Limit Exceeded";
+    case "PARTIAL": return "Partially Correct";
+    default: return v ? String(v) : "—";
+  }
+}
+
+function verdictColorClass(v: string | null | undefined): string {
+  switch (v) {
+    case "AC": return "text-emerald-700 dark:text-emerald-300";
+    case "PARTIAL": return "text-amber-700 dark:text-amber-300";
+    case "WA":
+    case "RE":
+    case "TLE":
+      return "text-rose-700 dark:text-rose-300";
+    default:
+      return "text-muted";
+  }
+}
+
 function EditorShell({
   language,
   value,
-  onChange
+  onChange,
+  height
 }: {
   language: Lang;
   value: string;
   onChange: (v: string) => void;
+  height: string;
 }) {
   const monacoLang =
     language === "javascript" ? "javascript" : language === "python" ? "python" : language === "java" ? "java" : "cpp";
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden bg-black/40">
+    <div className="rounded-b border border-t-0 border-border overflow-hidden bg-[#1e1e1e] flex-1 min-h-[200px]">
       <Editor
-        height="380px"
+        height={height}
         defaultLanguage={monacoLang}
         language={monacoLang}
         value={value}
@@ -53,9 +82,9 @@ function InputShell({ value, onChange }: { value: string; onChange: (v: string) 
     <textarea
       value={value}
       spellCheck={false}
-      className="w-full min-h-[96px] rounded-xl bg-black/40 border border-border p-4 font-mono text-sm text-text outline-none focus:ring-2 focus:ring-brand/50"
+      className="w-full h-full min-h-[80px] rounded border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 placeholder:text-white/40 outline-none focus:ring-2 focus:ring-brand/50 resize-y"
       onChange={(e) => onChange(e.target.value)}
-      placeholder="Custom stdin input (optional)"
+      placeholder="Custom input (stdin)"
       name="stdin"
     />
   );
@@ -79,21 +108,19 @@ if __name__ == "__main__":
   }
   if (language === "java") {
     return `// ${title}
-// Java runner not enabled yet in this MVP.
 public class Main {
   public static void main(String[] args) throws Exception {
-    System.out.println("Java not enabled yet.");
+    // TODO
   }
 }
 `;
   }
   if (language === "cpp") {
     return `// ${title}
-// C++ runner not enabled yet in this MVP.
 #include <bits/stdc++.h>
 using namespace std;
 int main() {
-  cout << "C++ not enabled yet." << endl;
+  // TODO
   return 0;
 }
 `;
@@ -113,11 +140,13 @@ console.log(solve(require("fs").readFileSync(0, "utf8")));
 export function ProblemClient({
   starter,
   title,
-  problemSlug
+  problemSlug,
+  problemType = "algorithm"
 }: {
   starter: string;
   title: string;
   problemSlug: string;
+  problemType?: "algorithm" | "project";
 }) {
   const [code, setCode] = React.useState(starter);
   const [output, setOutput] = React.useState<string>("");
@@ -133,63 +162,55 @@ export function ProblemClient({
       }
   >(null);
   const [submissions, setSubmissions] = React.useState<
-    {
-      id: string;
-      createdAt: string;
-      language: string;
-      verdict: "AC" | "PARTIAL" | "WA" | "RE" | "TLE";
-      score: number;
-    }[]
+    { id: string; createdAt: string; language: string; verdict: Verdict; score: number }[]
   >([]);
   const [mine, setMine] = React.useState<
-    {
-      id: string;
-      createdAt: string;
-      language: string;
-      verdict: "AC" | "PARTIAL" | "WA" | "RE" | "TLE";
-      score: number;
-    }[]
+    { id: string; createdAt: string; language: string; verdict: Verdict; score: number; projectResult?: { useCaseResults: { id: string; title: string; passed: boolean; message?: string }[] } }[]
   >([]);
   const [user, setUser] = React.useState<string | null>(null);
+  const editorContainerRef = React.useRef<HTMLDivElement>(null);
+  const [editorHeight, setEditorHeight] = React.useState("320px");
+  // Project submission state
+  const [projectFile, setProjectFile] = React.useState<File | null>(null);
+  const [projectSubmitting, setProjectSubmitting] = React.useState(false);
+  const [lastProjectResult, setLastProjectResult] = React.useState<{
+    verdict: string;
+    score: number;
+    useCaseResults?: { id: string; title: string; passed: boolean; message?: string }[];
+  } | null>(null);
+
+  React.useEffect(() => {
+    const el = editorContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const h = el.clientHeight;
+      setEditorHeight(`${Math.max(200, h)}px`);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   async function refreshSubmissions() {
     const res = await fetch(`/api/submissions?problemSlug=${encodeURIComponent(problemSlug)}`);
     const data = (await res.json()) as
-      | {
-          ok: true;
-          user: string | null;
-          items: {
-            id: string;
-            createdAt: string;
-            language: string;
-            verdict: "AC" | "PARTIAL" | "WA" | "RE" | "TLE";
-            score: number;
-          }[];
-          mine: {
-            id: string;
-            createdAt: string;
-            language: string;
-            verdict: "AC" | "PARTIAL" | "WA" | "RE" | "TLE";
-            score: number;
-          }[];
-        }
+      | { ok: true; user: string | null; items: unknown[]; mine: unknown[] }
       | { ok: false };
     if ("ok" in data && data.ok) {
       setUser(data.user);
-      setSubmissions(data.items);
-      setMine(data.mine);
+      setSubmissions((data.items ?? []) as typeof submissions);
+      setMine((data.mine ?? []) as typeof mine);
     }
   }
 
   React.useEffect(() => {
     void refreshSubmissions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when problemSlug changes
   }, [problemSlug]);
 
   async function run() {
     setRunning(true);
     setOutput("");
-    setSampleResults(null);
+    // Keep last sample results so Submit remains enabled after Run.
     try {
       const res = await fetch("/api/run", {
         method: "POST",
@@ -218,12 +239,8 @@ export function ProblemClient({
       const data = (await res.json()) as
         | { ok: true; allPass: boolean; results: { pass: boolean; ok: boolean; input: string; expected: string; actual: string }[] }
         | { ok: false; stderr: string };
-
-      if ("ok" in data && data.ok === true) {
-        setSampleResults({ allPass: data.allPass, results: data.results });
-      } else {
-        setOutput(("stderr" in data && data.stderr) || "Run samples failed.");
-      }
+      if ("ok" in data && data.ok) setSampleResults({ allPass: data.allPass, results: data.results });
+      else setOutput(("stderr" in data && data.stderr) || "Run samples failed.");
     } catch (e) {
       setOutput(e instanceof Error ? e.message : "Run samples failed.");
     } finally {
@@ -231,232 +248,272 @@ export function ProblemClient({
     }
   }
 
+  async function submit() {
+    if (!sampleResults) return;
+    const res = await fetch("/api/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ problemSlug, language, code, samplesPass: sampleResults.allPass })
+    });
+    const data = (await res.json()) as { ok: boolean; verdict?: string; score?: number; stderr?: string };
+    if (!data.ok) {
+      setOutput(data.stderr ?? "Submit failed.");
+      return;
+    }
+    await refreshSubmissions();
+    const v = data.verdict ?? "—";
+    const s = data.score != null ? ` | Score: ${data.score}` : "";
+    const hint =
+      v === "RE" ? "\n\nYour code could not run successfully. Click Run to see the error, fix it, then submit again."
+      : v === "TLE" ? "\n\nYour solution took too long. Try optimizing your approach and submit again."
+      : v === "WA" ? "\n\nYour output did not match expected output on some hidden tests. Re-check edge cases and formatting."
+      : v === "PARTIAL" ? "\n\nSome test groups passed, some failed. Improve the solution to pass all tests."
+      : "";
+    setOutput(`Submit completed.\nResult: ${verdictLabel(v)}${s}${hint}`);
+  }
+
+  async function submitProject() {
+    if (!projectFile || problemType !== "project") return;
+    setProjectSubmitting(true);
+    setLastProjectResult(null);
+    setOutput("");
+    try {
+      const form = new FormData();
+      form.set("problemSlug", problemSlug);
+      form.set("file", projectFile);
+      const res = await fetch("/api/submit-project", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json()) as {
+        ok: boolean;
+        verdict?: string;
+        score?: number;
+        projectResult?: { useCaseResults: { id: string; title: string; passed: boolean; message?: string }[] };
+        stderr?: string;
+      };
+      if (!data.ok) {
+        setOutput(data.stderr ?? "Submit failed.");
+        return;
+      }
+      setLastProjectResult({
+        verdict: data.verdict ?? "—",
+        score: data.score ?? 0,
+        useCaseResults: data.projectResult?.useCaseResults,
+      });
+      setOutput(`Submit successful.\nVerdict: ${data.verdict ?? "—"} | Score: ${data.score ?? 0}`);
+      await refreshSubmissions();
+    } catch (e) {
+      setOutput(e instanceof Error ? e.message : "Submit failed.");
+    } finally {
+      setProjectSubmitting(false);
+    }
+  }
+
+  const showAlgorithmActions = problemType !== "project";
+
   return (
-    <Card className="p-6">
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xs tracking-[0.35em] text-muted">EDITOR</div>
-              <div className="text-sm text-muted mt-2">Choose language, write code, and run.</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={language}
-                onChange={(e) => {
-                  const next = e.target.value as Lang;
-                  setLanguage(next);
-                  setCode(templateFor(next, title));
-                  setOutput("");
-                }}
-                className="h-10 rounded-xl bg-black/40 border border-border px-3 text-sm text-text outline-none focus:ring-2 focus:ring-brand/50"
-              >
-                {(Object.keys(LANG_LABEL) as Lang[]).map((l) => (
-                  <option key={l} value={l}>
-                    {LANG_LABEL[l]}
-                  </option>
-                ))}
-              </select>
-              <Button type="button" onClick={runSamples} disabled={runningSamples || running}>
-                <ListChecks className="h-4 w-4" /> {runningSamples ? "Running..." : "Run Samples"}
-              </Button>
-              <Button type="button" onClick={run} disabled={running}>
-                <Play className="h-4 w-4" /> {running ? "Running..." : "Run"}
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <EditorShell language={language} value={code} onChange={setCode} />
-          </div>
-        </div>
-
-        <div className="w-full lg:w-64 lg:flex-shrink-0 rounded-xl border border-border bg-black/40 p-4 text-xs text-muted space-y-2">
-          <div className="flex items-center gap-2 text-text">
-            <Lightbulb className="h-4 w-4 text-amber-300" />
-            <span className="text-[11px] tracking-[0.2em]">LANGUAGE HINTS</span>
-          </div>
-          {language === "python" && (
-            <ul className="list-disc list-inside space-y-1">
-              <li>Use <code>sys.stdin.read()</code> for full input.</li>
-              <li>Remember to print only the required output.</li>
-            </ul>
-          )}
-          {language === "javascript" && (
-            <ul className="list-disc list-inside space-y-1">
-              <li>Use <code>{`fs.readFileSync(0, "utf8")`}</code> to read stdin.</li>
-              <li>Avoid console logs other than the final answer.</li>
-            </ul>
-          )}
-          {language === "java" && (
-            <ul className="list-disc list-inside space-y-1">
-              <li>
-                Class name must be <code>Main</code>.
-              </li>
-              <li>
-                Use <code>Scanner</code> or <code>BufferedReader</code> for input.
-              </li>
-            </ul>
-          )}
-          {language === "cpp" && (
-            <ul className="list-disc list-inside space-y-1">
-              <li>Use fast I/O (<code>ios::sync_with_stdio(false)</code>).</li>
-              <li>Print exactly as required (no extra spaces).</li>
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="text-xs tracking-[0.35em] text-muted">INPUT</div>
-        <div className="mt-2">
-          <InputShell value={stdin} onChange={setStdin} />
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="text-xs tracking-[0.35em] text-muted">OUTPUT</div>
-        <pre className="mt-2 min-h-[120px] rounded-xl bg-black/40 border border-border p-4 font-mono text-sm text-text whitespace-pre-wrap">
-          {output}
-        </pre>
-      </div>
-
-      {sampleResults ? (
-        <div className="mt-4">
-          <div className="text-xs tracking-[0.35em] text-muted">SAMPLE RESULTS</div>
-          <div className="mt-2 text-sm">
-            {sampleResults.allPass ? (
-              <span className="text-emerald-300">All sample tests passed.</span>
-            ) : (
-              <span className="text-rose-300">Some sample tests failed.</span>
-            )}
-          </div>
-          <div className="mt-3 grid gap-3">
-            {sampleResults.results.map((r, i) => (
-              <div key={i} className="rounded-xl border border-border bg-white/5 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">Sample #{i + 1}</div>
-                  <div className={r.pass ? "text-emerald-300 text-xs" : "text-rose-300 text-xs"}>
-                    {r.pass ? "PASS" : r.ok ? "FAIL" : "ERROR"}
-                  </div>
-                </div>
-                <div className="text-xs text-muted mt-3">Input</div>
-                <pre className="mt-1 text-sm whitespace-pre-wrap">{r.input}</pre>
-                <div className="text-xs text-muted mt-3">Expected</div>
-                <pre className="mt-1 text-sm whitespace-pre-wrap">{r.expected}</pre>
-                <div className="text-xs text-muted mt-3">Actual</div>
-                <pre className="mt-1 text-sm whitespace-pre-wrap">{r.actual}</pre>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <div className="text-sm text-muted">
-              Submit runs hidden tests and stores your verdict.
-            </div>
+    <div className="flex flex-col h-full min-h-0">
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-black/30 shrink-0">
+        {showAlgorithmActions ? (
+          <>
+            <span className="text-xs text-muted mr-1">Language</span>
+            <select
+              value={language}
+              onChange={(e) => {
+                const next = e.target.value as Lang;
+                setLanguage(next);
+                setCode(templateFor(next, title));
+                setOutput("");
+              }}
+              className="h-8 rounded border border-border bg-black/40 px-2 text-sm text-text outline-none focus:ring-2 focus:ring-brand/50"
+            >
+              {(Object.keys(LANG_LABEL) as Lang[]).map((l) => (
+                <option key={l} value={l}>{LANG_LABEL[l]}</option>
+              ))}
+            </select>
+            <Button type="button" variant="ghost" onClick={run} disabled={running} className="gap-1 py-1.5 px-3 text-xs">
+              <Play className="h-3.5 w-3.5" /> {running ? "Running..." : "Run"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={runSamples} disabled={runningSamples || running} className="gap-1 py-1.5 px-3 text-xs">
+              <ListChecks className="h-3.5 w-3.5" /> {runningSamples ? "Running..." : "Run Samples"}
+            </Button>
             <Button
               type="button"
               disabled={!sampleResults || runningSamples || running}
-              onClick={async () => {
-                const res = await fetch("/api/submit", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ problemSlug, language, code, samplesPass: sampleResults.allPass })
-                });
-                const data = (await res.json()) as { ok: boolean; verdict?: string; score?: number; stderr?: string };
-                if (!data.ok) setOutput(data.stderr ?? "Submit failed.");
-                if (data.ok) await refreshSubmissions();
-              }}
+              onClick={submit}
+              className="gap-1 py-1.5 px-3 text-xs ml-auto"
             >
-              Submit
+              <Send className="h-3.5 w-3.5" /> Submit
             </Button>
-          </div>
-        </div>
-      ) : null}
+          </>
+        ) : (
+          <span className="text-xs text-muted">Project — upload a ZIP of your codebase</span>
+        )}
+      </div>
 
-      <div className="mt-6">
-        <div className="text-xs tracking-[0.35em] text-muted">SUBMISSIONS</div>
-        <div className="mt-2 text-sm text-muted">
-          {user ? (
-            <span>
-              Signed in as <span className="text-text font-semibold">{user}</span>
-            </span>
-          ) : (
-            <span>
-              Not signed in. Go to <a className="underline" href="/login">/login</a> to submit.
-            </span>
-          )}
+      {/* Disabled reason for Submit (avoids confusion) */}
+      {showAlgorithmActions && !sampleResults && (
+        <div className="px-4 py-2 border-b border-border bg-black/15 text-sm text-muted">
+          Run <strong>Run Samples</strong> to enable <strong>Submit</strong>. Submit runs hidden tests for grading.
         </div>
+      )}
 
-        {user ? (
-          <div className="mt-4">
-            <div className="text-xs tracking-[0.35em] text-muted">MY SUBMISSIONS</div>
-            <div className="mt-2 grid gap-2">
-              {mine.length === 0 ? (
-                <div className="text-sm text-muted">No submissions yet.</div>
-              ) : (
-                mine.map((s) => (
-                  <div
-                    key={s.id}
-                    className="rounded-xl border border-border bg-white/5 p-3 flex items-center justify-between"
-                  >
-                    <div className="text-sm">
-                      <span
-                        className={
-                          s.verdict === "AC"
-                            ? "text-emerald-300"
-                            : s.verdict === "PARTIAL"
-                              ? "text-amber-300"
-                            : s.verdict === "WA"
-                              ? "text-rose-300"
-                              : s.verdict === "TLE"
-                                ? "text-amber-300"
-                                : "text-rose-300"
-                        }
-                      >
-                        {s.verdict === "PARTIAL" ? `PARTIAL (${s.score})` : s.verdict}
-                      </span>
-                      <span className="text-muted">· {LANG_LABEL[s.language as Lang] ?? s.language}</span>
-                    </div>
-                    <div className="text-xs text-muted">{new Date(s.createdAt).toLocaleString()}</div>
-                  </div>
-                ))
-              )}
+      {problemType === "project" ? (
+        /* Project: upload ZIP + result */
+        <div className="flex-1 min-h-0 flex flex-col overflow-auto">
+          <div className="p-4 space-y-4 border-b border-border">
+            <p className="text-sm text-muted">
+              Upload a <strong>.zip</strong> containing your solution (e.g. <code className="bg-white/10 px-1 rounded">solution.js</code>). Max 5 MB. The server will run the test suite and show use-case results.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg border border-border bg-black/30 px-3 py-2 text-sm hover:bg-white/5 transition">
+                <FileArchive className="h-4 w-4" />
+                <input
+                  type="file"
+                  accept=".zip,application/zip"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    setProjectFile(f ?? null);
+                    setLastProjectResult(null);
+                  }}
+                />
+                {projectFile ? projectFile.name : "Choose ZIP"}
+              </label>
+              <Button
+                type="button"
+                disabled={!projectFile || projectSubmitting}
+                onClick={submitProject}
+                className="gap-1"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {projectSubmitting ? "Submitting…" : "Submit project"}
+              </Button>
             </div>
           </div>
-        ) : null}
-
-        <div className="mt-2 grid gap-2">
-          {submissions.length === 0 ? (
-            <div className="text-sm text-muted">No submissions yet.</div>
-          ) : (
-            submissions.map((s) => (
-              <div key={s.id} className="rounded-xl border border-border bg-white/5 p-3 flex items-center justify-between">
-                <div className="text-sm">
-                  <span
-                    className={
-                      s.verdict === "AC"
-                        ? "text-emerald-300"
-                        : s.verdict === "PARTIAL"
-                          ? "text-amber-300"
-                        : s.verdict === "WA"
-                          ? "text-rose-300"
-                          : s.verdict === "TLE"
-                            ? "text-amber-300"
-                            : "text-rose-300"
-                    }
-                  >
-                    {s.verdict === "PARTIAL" ? `PARTIAL (${s.score})` : s.verdict}
+          <div className="p-4 flex-1 overflow-auto">
+            <div className="text-xs font-medium text-muted uppercase mb-2">Result</div>
+            {lastProjectResult ? (
+              <div className="space-y-3">
+                <p className="text-sm">
+                  <span className={cn("font-semibold", verdictColorClass(lastProjectResult.verdict))}>
+                    {verdictLabel(lastProjectResult.verdict)}
                   </span>
-                  <span className="text-muted">· {LANG_LABEL[s.language as Lang] ?? s.language}</span>
-                </div>
-                <div className="text-xs text-muted">{new Date(s.createdAt).toLocaleString()}</div>
+                  {" "}
+                  <span className="text-muted">Score: {lastProjectResult.score}/100</span>
+                </p>
+                {lastProjectResult.useCaseResults && lastProjectResult.useCaseResults.length > 0 && (
+                  <ul className="space-y-2">
+                    {lastProjectResult.useCaseResults.map((uc) => (
+                      <li
+                        key={uc.id}
+                        className={cn(
+                          "rounded border px-3 py-2 text-sm",
+                          uc.passed ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                        )}
+                      >
+                        <span className="font-medium">{uc.title}</span>
+                        {uc.passed ? " — Passed" : ` — Failed${uc.message ? `: ${uc.message}` : ""}`}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            ))
+            ) : output ? (
+              <pre className="rounded border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 whitespace-pre-wrap">
+                {output}
+              </pre>
+            ) : (
+              <p className="text-sm text-muted">Submit your project to see results.</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Editor — fills available space */}
+          <div ref={editorContainerRef} className="flex-1 min-h-0 flex flex-col">
+            <EditorShell language={language} value={code} onChange={setCode} height={editorHeight} />
+          </div>
+
+          {/* Input | Output — side by side like CodeChef */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t border-border shrink-0">
+            <div className="border-r border-border p-3 flex flex-col min-h-[100px]">
+              <div className="text-xs font-medium text-muted uppercase mb-2">Custom Input</div>
+              <InputShell value={stdin} onChange={setStdin} />
+            </div>
+            <div className="p-3 flex flex-col min-h-[100px]">
+              <div className="text-xs font-medium text-muted uppercase mb-2">Output</div>
+              <pre className="flex-1 min-h-[60px] rounded border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 whitespace-pre-wrap overflow-auto">
+                {output || "Run your code to see output."}
+              </pre>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Sample results + Submit reminder */}
+      {sampleResults && showAlgorithmActions && (
+        <div className="px-4 py-3 border-t border-border bg-black/20 shrink-0">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <span
+              className={cn(
+                "text-sm font-medium",
+                sampleResults.allPass ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"
+              )}
+            >
+              {sampleResults.allPass ? "All sample tests passed." : "Some sample tests failed."}
+            </span>
+            <Button disabled={runningSamples || running} onClick={submit} className="py-1.5 px-3 text-xs">
+              <Send className="h-3.5 w-3.5 mr-1" /> Submit
+            </Button>
+          </div>
+          <details className="mt-2">
+            <summary className="text-xs text-muted cursor-pointer">View sample details</summary>
+            <div className="mt-2 space-y-2">
+              {sampleResults.results.map((r, i) => (
+                <div key={i} className="rounded border border-border bg-black/30 p-2 text-xs">
+                  <span className={cn("font-medium", r.pass ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300")}>
+                    Sample {i + 1}: {r.pass ? "Passed" : r.ok ? "Failed" : "Error"}
+                  </span>
+                  {!r.pass && (
+                    <pre className="mt-1 text-muted">Expected: {r.expected}\nActual: {r.actual}</pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
+
+      {/* Submissions strip */}
+      <div className="px-4 py-2 border-t border-border bg-black/10 shrink-0">
+        <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+          <span className="text-muted">
+            {user ? (
+              <>Signed in as <span className="text-text font-medium">{user}</span></>
+            ) : (
+              <>Not signed in. <a href="/login" className="underline">Log in</a> to submit.</>
+            )}
+          </span>
+          {user && (mine.length > 0) && (
+            <span className="text-muted">
+              Your submissions: {mine.slice(0, 3).map((s) => (
+                <span
+                  key={s.id}
+                  className={cn(
+                    "ml-1",
+                    verdictColorClass(s.verdict)
+                  )}
+                >
+                  {verdictLabel(s.verdict)}{s.score !== undefined && s.verdict === "PARTIAL" ? ` (${s.score})` : ""}
+                </span>
+              ))}
+            </span>
           )}
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
-
