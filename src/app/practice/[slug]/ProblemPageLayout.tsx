@@ -70,7 +70,10 @@ export function ProblemPageLayout({
                       <div className="text-xs text-muted uppercase mt-3 mb-1">Output</div>
                       <pre className="whitespace-pre-wrap break-words text-text">{ex.output}</pre>
                       {ex.explanation && (
-                        <div className="text-xs text-muted mt-2 font-sans">{ex.explanation}</div>
+                        <>
+                          <div className="text-xs text-muted uppercase mt-3 mb-1">Explanation</div>
+                          <div className="text-xs text-muted font-sans">{ex.explanation}</div>
+                        </>
                       )}
                     </div>
                   ))}

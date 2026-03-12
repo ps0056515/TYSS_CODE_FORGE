@@ -29,7 +29,21 @@ export default function AdminPage() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4 mt-8">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+        <Card className="p-6">
+          <div className="text-sm font-semibold">Dashboard</div>
+          <div className="text-sm text-muted mt-2">See all orgs, BUs, batches, and assignment dashboards.</div>
+          <a className="inline-block mt-4 underline text-sm" href="/admin/dashboard">
+            Open →
+          </a>
+        </Card>
+        <Card className="p-6">
+          <div className="text-sm font-semibold">Organizations & Batches</div>
+          <div className="text-sm text-muted mt-2">Manage orgs, business units, batches, assignments, and handouts.</div>
+          <a className="inline-block mt-4 underline text-sm" href="/admin/organizations">
+            Open →
+          </a>
+        </Card>
         <Card className="p-6">
           <div className="text-sm font-semibold">Problems</div>
           <div className="text-sm text-muted mt-2">Add/edit statements, tags, sample/hidden tests.</div>

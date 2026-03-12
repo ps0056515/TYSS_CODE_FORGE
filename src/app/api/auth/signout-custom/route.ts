@@ -4,9 +4,13 @@ import { USER_COOKIE } from "@/lib/auth";
 /**
  * Clears the CodeForge user cookie and redirects to NextAuth signout so both sessions are cleared.
  */
-export async function GET() {
-  const base = process.env.NEXTAUTH_URL || "http://localhost:3002";
-  const res = NextResponse.redirect(`${base}/api/auth/signout?callbackUrl=${encodeURIComponent(base)}`);
+export async function GET(req: Request) {
+  // Use request origin for redirects so sign-out works on any host.
+  const origin = new URL(req.url).origin;
+  const callbackUrl = process.env.NEXTAUTH_URL || origin;
+  const res = NextResponse.redirect(
+    `${origin}/api/auth/signout?callbackUrl=${encodeURIComponent(callbackUrl)}`
+  );
   res.cookies.set(USER_COOKIE, "", { path: "/", maxAge: 0 });
   return res;
 }

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "mat-day1-slides",
+    "batchId": "mmn25xmx-pc8rydtq",
+    "title": "Day 1 Handout (.NET basics + setup)",
+    "type": "handout",
+    "contentOrUrl": "Install prerequisites, setup IDE, hello world, debugging basics.",
+    "day": 1,
+    "order": 1,
+    "createdAt": "2026-03-12T06:02:00.000Z"
+  },
+  {
+    "id": "mat-dotnet-docs",
+    "batchId": "mmn25xmx-pc8rydtq",
+    "title": ".NET Documentation",
+    "type": "link",
+    "contentOrUrl": "https://learn.microsoft.com/dotnet/",
+    "day": 1,
+    "order": 2,
+    "createdAt": "2026-03-12T06:03:00.000Z"
+  }
+]

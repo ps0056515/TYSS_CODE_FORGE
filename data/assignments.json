@@ -1,0 +1,33 @@
+[
+  {
+    "id": "mmn27hy9-zpwsitb9",
+    "batchId": "mmn25xmx-pc8rydtq",
+    "title": "DAY1",
+    "slug": "day1",
+    "description": "DAY 1 assignment",
+    "dueAt": "2026-03-13T06:00:00.000Z",
+    "type": "coding_set",
+    "codingSet": {
+      "filters": {
+        "tags": ["arrays", "strings"],
+        "difficulties": ["Easy"],
+        "languages": ["javascript", "python"],
+        "count": 10
+      },
+      "problemSlugs": ["sum-of-two", "two-sum-index", "valid-parentheses", "reverse-string", "anagram-check"],
+      "completionScoreThreshold": 100
+    },
+    "createdAt": "2026-03-12T06:00:52.641Z"
+  },
+  {
+    "id": "seed-proj-cart",
+    "batchId": "mmn25xmx-pc8rydtq",
+    "title": "Mini Project: Cart Module",
+    "slug": "mini-project-cart-module",
+    "description": "Upload a ZIP with your implementation. You will be graded on use-case tests (transparent report).",
+    "dueAt": "2026-03-16T18:30:00.000Z",
+    "type": "project_usecase",
+    "codeforgeProblemId": "cart-module",
+    "createdAt": "2026-03-12T06:05:52.641Z"
+  }
+]

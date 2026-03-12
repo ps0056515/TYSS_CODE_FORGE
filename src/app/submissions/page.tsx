@@ -1,5 +1,6 @@
 import { Container, Card } from "@/components/ui";
 import { problems } from "@/lib/data";
+import { verdictLabel, verdictColorClass } from "@/lib/verdicts";
 import { headers } from "next/headers";
 
 type Row = {
@@ -13,7 +14,7 @@ type Row = {
   allPass?: boolean;
 };
 
-function verdictOf(r: Row) {
+function verdictOf(r: Row): string {
   if (r.verdict) return r.verdict;
   if (typeof r.allPass === "boolean") return r.allPass ? "AC" : "WA";
   return "WA";
@@ -62,16 +63,6 @@ export default async function SubmissionsPage() {
               ) : (
                 items.map((r) => {
                   const v = verdictOf(r);
-                  const cls =
-                    v === "AC"
-                      ? "text-emerald-300"
-                      : v === "PARTIAL"
-                        ? "text-amber-300"
-                      : v === "WA"
-                        ? "text-rose-300"
-                        : v === "TLE"
-                          ? "text-amber-300"
-                          : "text-rose-300";
                   return (
                     <tr key={r.id} className="border-t border-border">
                       <td className="py-2 text-muted">{new Date(r.createdAt).toLocaleString()}</td>
@@ -83,7 +74,9 @@ export default async function SubmissionsPage() {
                       </td>
                       <td className="py-2 text-muted">{r.language}</td>
                       <td className="py-2 text-right text-muted">{typeof r.score === "number" ? r.score : v === "AC" ? 100 : 0}</td>
-                      <td className={`py-2 text-right font-semibold ${cls}`}>{v}</td>
+                      <td className={`py-2 text-right font-semibold ${verdictColorClass(v)}`}>
+                        {verdictLabel(v)}
+                      </td>
                     </tr>
                   );
                 })

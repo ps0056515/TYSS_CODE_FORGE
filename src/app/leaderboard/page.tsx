@@ -32,21 +32,21 @@ export default async function LeaderboardPage() {
       <div className="grid lg:grid-cols-3 gap-4 mt-8">
         <Card className="p-5 lg:col-span-2">
           <div className="text-sm font-semibold">Global</div>
+          <p className="text-xs text-muted mt-1">Ranked by successful completions. Score = passed challenges / total attempts.</p>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-muted">
                 <tr>
                   <th className="text-left py-2">#</th>
                   <th className="text-left py-2">User</th>
-                  <th className="text-right py-2">Best</th>
-                  <th className="text-right py-2">AC</th>
-                  <th className="text-right py-2">Attempts</th>
+                  <th className="text-right py-2">Score</th>
+                  <th className="text-right py-2">Solved</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td className="py-3 text-muted" colSpan={5}>
+                    <td className="py-3 text-muted" colSpan={4}>
                       No submissions yet.
                     </td>
                   </tr>
@@ -55,9 +55,12 @@ export default async function LeaderboardPage() {
                     <tr key={r.user} className="border-t border-border">
                       <td className="py-2">{i + 1}</td>
                       <td className="py-2 font-semibold">{r.user}</td>
-                      <td className="py-2 text-right">{r.bestScore}</td>
-                      <td className="py-2 text-right">{r.ac}</td>
-                      <td className="py-2 text-right text-muted">{r.attempts}</td>
+                      <td className="py-2 text-right font-medium">
+                        {r.attempts > 0 ? `${r.ac}/${r.attempts}` : "—"}
+                      </td>
+                      <td className="py-2 text-right text-muted">
+                        {r.ac} of {r.attempts} passed
+                      </td>
                     </tr>
                   ))
                 )}

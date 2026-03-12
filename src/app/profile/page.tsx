@@ -1,8 +1,9 @@
 import { Container, Card } from "@/components/ui";
-import { headers } from "next/headers";
 import { problems } from "@/lib/data";
+import { verdictLabel, verdictColorClass } from "@/lib/verdicts";
+import { getUserAsync } from "@/lib/auth";
+import { getProgressForUser, listAllSubmissions } from "@/lib/submissions";
 
-type Progress = { ok: boolean; user: string | null; solved: string[]; counts: { ac: number; total: number } };
 type SubRow = {
   id: string;
   createdAt: string;
@@ -12,27 +13,30 @@ type SubRow = {
   problemSlug: string;
 };
 
-function verdictOf(r: SubRow) {
+function verdictOf(r: SubRow): string {
   if (r.verdict) return r.verdict;
   if (typeof r.allPass === "boolean") return r.allPass ? "AC" : "WA";
   return "WA";
 }
 
 export default async function ProfilePage() {
-  const h = headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const base = host ? `${proto}://${host}` : "http://localhost:3002";
-
-  const progressRes = await fetch(`${base}/api/progress`, { cache: "no-store" });
-  const progress = (await progressRes.json()) as Progress;
+  const user = await getUserAsync();
+  const progress = user ? await getProgressForUser(user) : { solved: [] as string[], counts: { ac: 0, total: 0 } };
 
   const solvedTitles = new Map(problems.map((p) => [p.slug, p.title]));
 
-  // Recent submissions across all problems: reuse submissionsAll and filter to current user (MVP)
-  const allRes = await fetch(`${base}/api/submissionsAll?limit=200`, { cache: "no-store" });
-  const allData = (await allRes.json()) as { ok: boolean; items?: any[] };
-  const mine: SubRow[] = (allData.items ?? []).filter((x) => progress.user && x.user === progress.user);
+  const allSubs = user ? await listAllSubmissions() : [];
+  const mine: SubRow[] = allSubs
+    .filter((x) => x.user === user)
+    .slice(0, 200)
+    .map((s) => ({
+      id: s.id,
+      createdAt: s.createdAt,
+      language: s.language,
+      verdict: s.verdict,
+      allPass: undefined,
+      problemSlug: s.problemSlug,
+    }));
 
   return (
     <Container className="py-10">
@@ -42,7 +46,7 @@ export default async function ProfilePage() {
         <p className="text-sm text-muted mt-2 max-w-2xl">Local MVP profile. Next: avatars, streaks, ratings.</p>
       </div>
 
-      {!progress.user ? (
+      {!user ? (
         <Card className="p-6 mt-8">
           <div className="text-sm text-muted">
             You’re not signed in. Go to <a className="underline" href="/login">/login</a>.
@@ -52,7 +56,7 @@ export default async function ProfilePage() {
         <div className="grid lg:grid-cols-3 gap-4 mt-8">
           <Card className="p-6">
             <div className="text-xs tracking-[0.35em] text-muted">USER</div>
-            <div className="mt-2 text-xl font-extrabold">{progress.user}</div>
+            <div className="mt-2 text-xl font-extrabold">{user}</div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-border bg-white/5 p-4">
                 <div className="text-xs text-muted">Solved</div>
@@ -71,7 +75,7 @@ export default async function ProfilePage() {
               {progress.solved.length === 0 ? (
                 <div className="text-sm text-muted">No solved problems yet.</div>
               ) : (
-                progress.solved.map((slug) => (
+                progress.solved.map((slug: string) => (
                   <a
                     key={slug}
                     className="rounded-xl border border-border bg-white/5 p-3 hover:bg-white/10 transition"
@@ -107,14 +111,6 @@ export default async function ProfilePage() {
                   ) : (
                     mine.slice(0, 25).map((r) => {
                       const v = verdictOf(r);
-                      const cls =
-                        v === "AC"
-                          ? "text-emerald-300"
-                          : v === "WA"
-                            ? "text-rose-300"
-                            : v === "TLE"
-                              ? "text-amber-300"
-                              : "text-rose-300";
                       return (
                         <tr key={r.id} className="border-t border-border">
                           <td className="py-2 text-muted">{new Date(r.createdAt).toLocaleString()}</td>
@@ -124,7 +120,9 @@ export default async function ProfilePage() {
                             </a>
                           </td>
                           <td className="py-2 text-muted">{r.language}</td>
-                          <td className={`py-2 text-right font-semibold ${cls}`}>{v}</td>
+                          <td className={`py-2 text-right font-semibold ${verdictColorClass(v)}`}>
+                            {verdictLabel(v)}
+                          </td>
                         </tr>
                       );
                     })

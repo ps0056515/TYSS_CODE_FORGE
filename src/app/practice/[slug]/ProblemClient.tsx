@@ -5,6 +5,7 @@ import { Play, ListChecks, Send, Upload, FileArchive } from "lucide-react";
 import { Button } from "@/components/ui";
 import Editor from "@monaco-editor/react";
 import { cn } from "@/lib/cn";
+import { verdictLabel, verdictColorClass } from "@/lib/verdicts";
 
 type Lang = "javascript" | "python" | "java" | "cpp";
 
@@ -16,30 +17,6 @@ const LANG_LABEL: Record<Lang, string> = {
 };
 
 type Verdict = "AC" | "PARTIAL" | "WA" | "RE" | "TLE";
-
-function verdictLabel(v: string | null | undefined): string {
-  switch (v) {
-    case "AC": return "Accepted";
-    case "WA": return "Wrong Answer";
-    case "RE": return "Compilation / Runtime Error";
-    case "TLE": return "Time Limit Exceeded";
-    case "PARTIAL": return "Partially Correct";
-    default: return v ? String(v) : "—";
-  }
-}
-
-function verdictColorClass(v: string | null | undefined): string {
-  switch (v) {
-    case "AC": return "text-emerald-700 dark:text-emerald-300";
-    case "PARTIAL": return "text-amber-700 dark:text-amber-300";
-    case "WA":
-    case "RE":
-    case "TLE":
-      return "text-rose-700 dark:text-rose-300";
-    default:
-      return "text-muted";
-  }
-}
 
 function EditorShell({
   language,
@@ -161,12 +138,20 @@ export function ProblemClient({
         results: { pass: boolean; ok: boolean; input: string; expected: string; actual: string }[];
       }
   >(null);
+  type MineEntry = {
+    id: string;
+    createdAt: string;
+    language: string;
+    verdict: Verdict;
+    score: number;
+    code?: string;
+    projectResult?: { useCaseResults: { id: string; title: string; passed: boolean; message?: string }[] };
+  };
   const [submissions, setSubmissions] = React.useState<
     { id: string; createdAt: string; language: string; verdict: Verdict; score: number }[]
   >([]);
-  const [mine, setMine] = React.useState<
-    { id: string; createdAt: string; language: string; verdict: Verdict; score: number; projectResult?: { useCaseResults: { id: string; title: string; passed: boolean; message?: string }[] } }[]
-  >([]);
+  const [mine, setMine] = React.useState<MineEntry[]>([]);
+  const [viewCodeSubmission, setViewCodeSubmission] = React.useState<MineEntry | null>(null);
   const [user, setUser] = React.useState<string | null>(null);
   const editorContainerRef = React.useRef<HTMLDivElement>(null);
   const [editorHeight, setEditorHeight] = React.useState("320px");
@@ -312,6 +297,28 @@ export function ProblemClient({
 
   const showAlgorithmActions = problemType !== "project";
 
+  // Prevent resubmitting identical code when the last submission was already accepted
+  const lastACSubmission = React.useMemo(
+    () => mine.find((m) => m.verdict === "AC"),
+    [mine]
+  );
+  const normalizeCode = (s: string) => (s ?? "").trim();
+  const isSameCodeAsLastAC = Boolean(
+    lastACSubmission &&
+    lastACSubmission.code !== undefined &&
+    normalizeCode(lastACSubmission.code) === normalizeCode(code)
+  );
+  const canSubmit = sampleResults && !runningSamples && !running && !isSameCodeAsLastAC;
+
+  async function handleSubmit() {
+    if (!sampleResults) return;
+    if (isSameCodeAsLastAC) {
+      setOutput("You have already submitted this code. Modify your code to submit again.");
+      return;
+    }
+    await submit();
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Toolbar */}
@@ -341,8 +348,8 @@ export function ProblemClient({
             </Button>
             <Button
               type="button"
-              disabled={!sampleResults || runningSamples || running}
-              onClick={submit}
+              disabled={!canSubmit}
+              onClick={handleSubmit}
               className="gap-1 py-1.5 px-3 text-xs ml-auto"
             >
               <Send className="h-3.5 w-3.5" /> Submit
@@ -354,9 +361,17 @@ export function ProblemClient({
       </div>
 
       {/* Disabled reason for Submit (avoids confusion) */}
-      {showAlgorithmActions && !sampleResults && (
+      {showAlgorithmActions && (
         <div className="px-4 py-2 border-b border-border bg-black/15 text-sm text-muted">
-          Run <strong>Run Samples</strong> to enable <strong>Submit</strong>. Submit runs hidden tests for grading.
+          {!sampleResults && (
+            <>Run <strong>Run Samples</strong> to enable <strong>Submit</strong>. Submit runs hidden tests for grading.</>
+          )}
+          {sampleResults && isSameCodeAsLastAC && (
+            <span>You have already submitted this code. Change your solution to submit again.</span>
+          )}
+          {sampleResults && !isSameCodeAsLastAC && !runningSamples && !running && (
+            <>Run Samples passed. Click <strong>Submit</strong> to run hidden tests.</>
+          )}
         </div>
       )}
 
@@ -465,7 +480,7 @@ export function ProblemClient({
             >
               {sampleResults.allPass ? "All sample tests passed." : "Some sample tests failed."}
             </span>
-            <Button disabled={runningSamples || running} onClick={submit} className="py-1.5 px-3 text-xs">
+            <Button disabled={!canSubmit} onClick={handleSubmit} className="py-1.5 px-3 text-xs">
               <Send className="h-3.5 w-3.5 mr-1" /> Submit
             </Button>
           </div>
@@ -497,23 +512,66 @@ export function ProblemClient({
               <>Not signed in. <a href="/login" className="underline">Log in</a> to submit.</>
             )}
           </span>
-          {user && (mine.length > 0) && (
-            <span className="text-muted">
-              Your submissions: {mine.slice(0, 3).map((s) => (
-                <span
-                  key={s.id}
-                  className={cn(
-                    "ml-1",
-                    verdictColorClass(s.verdict)
-                  )}
-                >
-                  {verdictLabel(s.verdict)}{s.score !== undefined && s.verdict === "PARTIAL" ? ` (${s.score})` : ""}
+          {user && mine.length > 0 && (
+            <span className="text-muted flex items-center gap-2 flex-wrap">
+              Your submissions (click to view code):
+              {mine.slice(0, 5).map((s, idx, arr) => (
+                <span key={s.id} className="inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewCodeSubmission(s)}
+                    className={cn(
+                      "underline hover:no-underline focus:outline-none focus:ring-1 focus:ring-brand/50 rounded px-0.5",
+                      verdictColorClass(s.verdict)
+                    )}
+                    title="View submitted code"
+                  >
+                    {verdictLabel(s.verdict)}{s.score !== undefined && s.verdict === "PARTIAL" ? ` (${s.score})` : ""}
+                  </button>
+                  {idx < arr.length - 1 && <span className="text-muted">·</span>}
                 </span>
               ))}
             </span>
           )}
         </div>
       </div>
+
+      {/* Modal: view previously submitted code */}
+      {viewCodeSubmission && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setViewCodeSubmission(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Submitted code"
+        >
+          <div
+            className="bg-background border border-border rounded-xl shadow-xl max-w-4xl w-full max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border shrink-0">
+              <span className="text-sm font-medium text-text">
+                Submission — {verdictLabel(viewCodeSubmission.verdict)}
+                {viewCodeSubmission.score !== undefined && viewCodeSubmission.verdict === "PARTIAL" && ` (${viewCodeSubmission.score})`}
+                {" "}
+                · {viewCodeSubmission.language} · {new Date(viewCodeSubmission.createdAt).toLocaleString()}
+              </span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setViewCodeSubmission(null)}>
+                Close
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto p-4 min-h-0">
+              {viewCodeSubmission.code !== undefined && viewCodeSubmission.code !== "" ? (
+                <pre className="text-xs font-mono text-text whitespace-pre-wrap break-words bg-[#1e1e1e] rounded-lg p-4 overflow-auto">
+                  {viewCodeSubmission.code}
+                </pre>
+              ) : (
+                <p className="text-sm text-muted">Code not stored for this submission (e.g. project upload).</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

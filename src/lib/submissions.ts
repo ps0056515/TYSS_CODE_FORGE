@@ -66,3 +66,51 @@ export async function listSubmissions(problemSlug: string, limit = 25, user?: st
   }
 }
 
+export async function listAllSubmissions(): Promise<Submission[]> {
+  try {
+    const raw = await fs.readFile(FILE, "utf8");
+    const lines = raw.split("\n").filter(Boolean);
+    const items: Submission[] = [];
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const parsed = JSON.parse(lines[i]) as Submission;
+        // Backward compat
+        const anyParsed = parsed as unknown as { allPass?: boolean; verdict?: Submission["verdict"]; score?: number };
+        if (!anyParsed.verdict && typeof anyParsed.allPass === "boolean") {
+          (parsed as Submission).verdict = anyParsed.allPass ? "AC" : "WA";
+        }
+        if (typeof anyParsed.score !== "number") {
+          (parsed as Submission).score = parsed.verdict === "AC" ? 100 : 0;
+        }
+        items.push(parsed);
+      } catch {
+        // ignore bad lines
+      }
+    }
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+/** Progress for a user: solved problem slugs and submission counts. Use in server components so auth context is shared. */
+export async function getProgressForUser(userId: string): Promise<{
+  solved: string[];
+  counts: { ac: number; total: number };
+}> {
+  const all = await listAllSubmissions();
+  const solved = new Set<string>();
+  let total = 0;
+  let ac = 0;
+  for (const s of all) {
+    if (s.user !== userId) continue;
+    total += 1;
+    const passed = s.verdict === "AC" || s.score === 100;
+    if (passed) {
+      ac += 1;
+      solved.add(s.problemSlug);
+    }
+  }
+  return { solved: Array.from(solved), counts: { ac, total } };
+}
+

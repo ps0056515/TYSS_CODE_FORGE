@@ -1,3 +1,16 @@
+/** A single lesson or topic within a module */
+export type SyllabusLesson = {
+  title: string;
+  description?: string;
+};
+
+/** A module in the course table of contents */
+export type SyllabusModule = {
+  title: string;
+  description?: string;
+  lessons: (string | SyllabusLesson)[];
+};
+
 export type Course = {
   id: string;
   title: string;
@@ -5,7 +18,8 @@ export type Course = {
   level: "Beginner" | "Intermediate" | "Advanced";
   modules: number;
   learners: string;
-  syllabus?: { title: string; lessons: string[] }[];
+  /** Table of contents: modules with detailed lessons (title + optional description) */
+  syllabus?: SyllabusModule[];
 };
 
 /** Use case shown to students for project-style problems */
@@ -62,9 +76,35 @@ export const courses: Course[] = [
     modules: 6,
     learners: "450k+",
     syllabus: [
-      { title: "Python foundations", lessons: ["I/O", "loops", "functions", "strings"] },
-      { title: "Core DSA", lessons: ["arrays", "hash maps", "stacks/queues", "recursion"] },
-      { title: "Interview practice", lessons: ["patterns", "edge cases", "complexity"] }
+      {
+        title: "Module 1: Python foundations",
+        description: "Variables, control flow, and basic I/O",
+        lessons: [
+          { title: "Input and output", description: "Reading from stdin, printing to stdout" },
+          { title: "Loops", description: "for, while, and iterating over sequences" },
+          { title: "Functions", description: "Defining and calling functions, return values" },
+          { title: "Strings", description: "Slicing, formatting, and string methods" }
+        ]
+      },
+      {
+        title: "Module 2: Core DSA",
+        description: "Essential data structures and recursion",
+        lessons: [
+          { title: "Arrays and lists", description: "Indexing, traversal, and common patterns" },
+          { title: "Hash maps", description: "Dictionaries and frequency counting" },
+          { title: "Stacks and queues", description: "LIFO/FIFO and problem-solving" },
+          { title: "Recursion", description: "Base cases, recurrence, and backtracking" }
+        ]
+      },
+      {
+        title: "Module 3: Interview practice",
+        description: "Patterns and complexity",
+        lessons: [
+          { title: "Common patterns", description: "Two pointers, sliding window, prefix sum" },
+          { title: "Edge cases", description: "Empty input, boundaries, overflow" },
+          { title: "Complexity", description: "Time and space analysis" }
+        ]
+      }
     ]
   },
   {
@@ -75,9 +115,33 @@ export const courses: Course[] = [
     modules: 4,
     learners: "170k+",
     syllabus: [
-      { title: "React basics", lessons: ["JSX", "components", "props/state"] },
-      { title: "Hooks", lessons: ["useEffect", "useMemo", "custom hooks"] },
-      { title: "Patterns", lessons: ["forms", "fetching", "state management"] }
+      {
+        title: "Module 1: React basics",
+        description: "JSX, components, and state",
+        lessons: [
+          { title: "JSX", description: "Syntax, expressions, and styling" },
+          { title: "Components", description: "Function and class components" },
+          { title: "Props and state", description: "Passing data and local state" }
+        ]
+      },
+      {
+        title: "Module 2: Hooks",
+        description: "Built-in and custom hooks",
+        lessons: [
+          { title: "useEffect", description: "Side effects and cleanup" },
+          { title: "useMemo and useCallback", description: "Memoization and performance" },
+          { title: "Custom hooks", description: "Reusable logic and composition" }
+        ]
+      },
+      {
+        title: "Module 3: Patterns",
+        description: "Forms, data fetching, and state",
+        lessons: [
+          { title: "Forms", description: "Controlled inputs and validation" },
+          { title: "Data fetching", description: "useEffect, loading, and error handling" },
+          { title: "State management", description: "Context, lifting state, and libraries" }
+        ]
+      }
     ]
   },
   {
@@ -88,9 +152,33 @@ export const courses: Course[] = [
     modules: 7,
     learners: "230k+",
     syllabus: [
-      { title: "Java core", lessons: ["OOP", "collections", "exceptions"] },
-      { title: "APIs", lessons: ["REST", "auth basics", "validation"] },
-      { title: "Persistence", lessons: ["SQL", "ORM basics", "transactions"] }
+      {
+        title: "Module 1: Java core",
+        description: "OOP, collections, and exceptions",
+        lessons: [
+          { title: "OOP", description: "Classes, inheritance, interfaces" },
+          { title: "Collections", description: "List, Set, Map, and streams" },
+          { title: "Exceptions", description: "Handling and defining exceptions" }
+        ]
+      },
+      {
+        title: "Module 2: APIs",
+        description: "REST and security basics",
+        lessons: [
+          { title: "REST", description: "Design, HTTP methods, and status codes" },
+          { title: "Auth basics", description: "Sessions, JWT, and OAuth" },
+          { title: "Validation", description: "Input validation and error responses" }
+        ]
+      },
+      {
+        title: "Module 3: Persistence",
+        description: "Databases and transactions",
+        lessons: [
+          { title: "SQL", description: "Queries, joins, and indexing" },
+          { title: "ORM basics", description: "JPA/Hibernate and entities" },
+          { title: "Transactions", description: "ACID and isolation levels" }
+        ]
+      }
     ]
   }
 ];

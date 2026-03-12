@@ -1,0 +1,32 @@
+[
+  {
+    "id": "enr-alice-day1",
+    "assignmentId": "mmn27hy9-zpwsitb9",
+    "userId": "alice@example.com",
+    "joinedAt": "2026-03-12T06:10:00.000Z"
+  },
+  {
+    "id": "enr-bob-day1",
+    "assignmentId": "mmn27hy9-zpwsitb9",
+    "userId": "bob@example.com",
+    "joinedAt": "2026-03-12T06:11:00.000Z"
+  },
+  {
+    "id": "enr-pradeep-day1",
+    "assignmentId": "mmn27hy9-zpwsitb9",
+    "userId": "pradeep.srinivasan@gmail.com",
+    "joinedAt": "2026-03-12T06:13:00.000Z"
+  },
+  {
+    "id": "enr-alice-cart",
+    "assignmentId": "seed-proj-cart",
+    "userId": "alice@example.com",
+    "joinedAt": "2026-03-12T06:12:00.000Z"
+  },
+  {
+    "id": "enr-pradeep-cart",
+    "assignmentId": "seed-proj-cart",
+    "userId": "pradeep.srinivasan@gmail.com",
+    "joinedAt": "2026-03-12T06:14:00.000Z"
+  }
+]
