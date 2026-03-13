@@ -9,7 +9,7 @@ import { Code, Trophy, BookOpen, TerminalSquare, LogIn, LogOut, BarChart3, List,
 import { Container } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
-const nav: Array<{ href: string; label: string; icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>; title?: string }> = [
+const nav: Array<{ href: string; label: string; icon: React.ElementType; title?: string }> = [
   { href: "/practice", label: "Practice", icon: TerminalSquare },
   { href: "/assignments", label: "Assignments", icon: ClipboardList, title: "My assignments & assessments" },
   { href: "/compiler", label: "Compiler", icon: Wrench },

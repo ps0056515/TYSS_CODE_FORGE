@@ -210,7 +210,10 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
                 <span className="block text-xs text-muted mb-1">Type</span>
                 <select
                   value={matType}
-                  onChange={(e) => setMatType(e.target.value as Material["type"])}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "link" || v === "handout" || v === "ref") setMatType(v);
+                  }}
                   className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
                 >
                   <option value="handout">Handout</option>

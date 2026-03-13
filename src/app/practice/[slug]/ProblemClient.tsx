@@ -556,7 +556,7 @@ export function ProblemClient({
                 {" "}
                 · {viewCodeSubmission.language} · {new Date(viewCodeSubmission.createdAt).toLocaleString()}
               </span>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setViewCodeSubmission(null)}>
+              <Button type="button" variant="ghost" className="text-xs py-1.5 px-3" onClick={() => setViewCodeSubmission(null)}>
                 Close
               </Button>
             </div>

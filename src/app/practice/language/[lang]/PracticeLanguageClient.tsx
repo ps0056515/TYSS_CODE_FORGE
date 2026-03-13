@@ -25,7 +25,7 @@ export function PracticeLanguageClient({
   langName: string;
   topics?: LanguageTopic[];
 }) {
-  const safeTopics = Array.isArray(topics) ? topics : [];
+  const safeTopics = React.useMemo(() => (Array.isArray(topics) ? topics : []), [topics]);
   const [problems, setProblems] = React.useState<Problem[]>([]);
   const [solved, setSolved] = React.useState<Set<string>>(new Set());
   const [user, setUser] = React.useState<string | null>(null);

@@ -8,7 +8,7 @@ type SubRow = {
   id: string;
   createdAt: string;
   language: string;
-  verdict?: "AC" | "WA" | "RE" | "TLE";
+  verdict?: "AC" | "PARTIAL" | "WA" | "RE" | "TLE";
   allPass?: boolean;
   problemSlug: string;
 };
