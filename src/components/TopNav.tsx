@@ -64,8 +64,19 @@ export function TopNav({ className }: { className?: string }) {
           </div>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-0.5 min-w-0 flex-1 overflow-x-auto justify-start px-2 scrollbar-hide" aria-label="Main navigation">
-          {nav.map((n) => {
+        <nav
+          className="hidden md:flex items-center gap-0.5 min-w-0 flex-1 overflow-x-auto justify-start px-2 scrollbar-hide"
+          aria-label="Main navigation"
+          onWheel={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollWidth <= el.clientWidth) return;
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+          }}
+        >
+          {nav
+            .filter((n) => !(isSignedIn && n.href === "/profile"))
+            .map((n) => {
             const Icon = n.icon;
             const active = isActive(n.href, pathname);
             const title = n.title;
@@ -146,12 +157,14 @@ export function TopNav({ className }: { className?: string }) {
       <div className="md:hidden border-t border-border bg-card/50 overflow-x-auto scrollbar-hide">
         <div className="flex items-center gap-1 px-4 py-2 min-w-max">
           {displayUser && (
-            <span className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted bg-white/5 border border-border shrink-0 mr-1" title={displayUser}>
+            <Link href="/profile" className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted bg-white/5 border border-border shrink-0 mr-1 hover:text-text transition" title={`Profile: ${displayUser}`}>
               <User className="h-3.5 w-3.5" />
               <span className="max-w-[120px] truncate">{displayUser}</span>
-            </span>
+            </Link>
           )}
-          {nav.map((n) => {
+          {nav
+            .filter((n) => !(isSignedIn && n.href === "/profile"))
+            .map((n) => {
             const Icon = n.icon;
             const active = isActive(n.href, pathname);
             return (

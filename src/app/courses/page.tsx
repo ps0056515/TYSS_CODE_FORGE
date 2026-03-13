@@ -5,6 +5,11 @@ import Link from "next/link";
 export default function CoursesPage() {
   return (
     <Container className="py-10">
+      <div className="mb-6">
+        <Link href="/" className="text-sm text-muted hover:text-text transition">
+          ← Back to Home
+        </Link>
+      </div>
       <div className="flex items-end justify-between gap-6">
         <div>
           <div className="text-xs font-medium tracking-widest text-muted uppercase">Courses</div>
@@ -12,6 +17,9 @@ export default function CoursesPage() {
           <p className="text-sm text-muted mt-2 max-w-2xl leading-relaxed">
             Structured learning paths with practice. This is an MVP dataset; next we can connect this to your org’s
             content, progress tracking, and certificates.
+          </p>
+          <p className="text-xs text-muted mt-2">
+            To add or edit courses, go to <Link href="/admin" className="text-brand hover:underline">Admin</Link> (admin only).
           </p>
         </div>
       </div>

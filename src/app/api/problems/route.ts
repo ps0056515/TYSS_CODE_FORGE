@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { addProblem, listProblems } from "@/lib/problems_store";
+import { addProblem, listProblems, listCustomSlugs } from "@/lib/problems_store";
 import { getUserAsync, isAdminUser, USER_COOKIE } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -23,8 +23,8 @@ const ProblemSchema = z.object({
 });
 
 export async function GET() {
-  const items = await listProblems();
-  return NextResponse.json({ ok: true, items });
+  const [items, customSlugs] = await Promise.all([listProblems(), listCustomSlugs()]);
+  return NextResponse.json({ ok: true, items, customSlugs });
 }
 
 export async function POST(req: Request) {

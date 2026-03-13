@@ -225,9 +225,18 @@ export function ProblemClient({
         | { ok: true; allPass: boolean; results: { pass: boolean; ok: boolean; input: string; expected: string; actual: string }[] }
         | { ok: false; stderr: string };
       if ("ok" in data && data.ok) setSampleResults({ allPass: data.allPass, results: data.results });
-      else setOutput(("stderr" in data && data.stderr) || "Run samples failed.");
+      else {
+        const msg = ("stderr" in data && data.stderr) || "Run samples failed.";
+        setOutput(
+          msg +
+            "\n\nTip: Ensure sample input format matches the problem (e.g. space-separated numbers like \"2 3\", or one value per line)."
+        );
+      }
     } catch (e) {
-      setOutput(e instanceof Error ? e.message : "Run samples failed.");
+      setOutput(
+        (e instanceof Error ? e.message : "Run samples failed.") +
+          "\n\nTip: Check that your sample input format matches the problem (e.g. space-separated numbers, correct line endings)."
+      );
     } finally {
       setRunningSamples(false);
     }
@@ -478,7 +487,7 @@ export function ProblemClient({
                 sampleResults.allPass ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"
               )}
             >
-              {sampleResults.allPass ? "All sample tests passed." : "Some sample tests failed."}
+              {sampleResults.allPass ? "All sample tests passed." : "Some sample tests failed. Open \"View sample details\" below to see expected vs actual output."}
             </span>
             <Button disabled={!canSubmit} onClick={handleSubmit} className="py-1.5 px-3 text-xs">
               <Send className="h-3.5 w-3.5 mr-1" /> Submit

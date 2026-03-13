@@ -87,7 +87,7 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
     const a = assignment;
     if (!a || a.type !== "coding_set") return [];
     const tags = tagsCsv
-      .split(",")
+      .split(/[\s,]+/)
       .map((s) => s.trim())
       .filter(Boolean);
     const desiredCount = Math.max(1, Math.min(200, parseInt(count || "20", 10) || 20));
@@ -97,7 +97,7 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
       .filter((p) => (p.type ?? "algorithm") === "algorithm")
       .filter((p) => (diffs.length ? diffs.includes(p.difficulty) : true))
       .filter((p) => (langs.length ? langs.some((l) => p.languages.includes(l)) : true))
-      .filter((p) => (tags.length ? tags.some((t) => p.tags.includes(t)) : true))
+      .filter((p) => (tags.length ? tags.some((t) => p.tags?.includes(t)) : true))
       .filter((p) => (q ? `${p.slug} ${p.title}`.toLowerCase().includes(q) : true))
       .sort((a, b) => a.title.localeCompare(b.title));
 
@@ -245,7 +245,7 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
               <div className="text-sm font-semibold mb-2">Filters (generate)</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="sm:col-span-2">
-                  <span className="block text-xs text-muted mb-1">Tags (comma-separated)</span>
+                  <span className="block text-xs text-muted mb-1">Tags (comma- or space-separated; all are applied)</span>
                   <input
                     type="text"
                     value={tagsCsv}

@@ -20,9 +20,10 @@ export function ProblemPageLayout({
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/practice"
-            className="text-sm text-muted hover:text-text transition shrink-0"
+            className="text-sm text-muted hover:text-text transition shrink-0 flex items-center gap-1"
+            title="Back to Practice"
           >
-            ← Practice
+            ← Back to Practice
           </Link>
           <span className="text-muted">/</span>
           <h1 className="text-base font-semibold text-text truncate">

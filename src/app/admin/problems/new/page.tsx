@@ -377,7 +377,7 @@ export default function AdminNewProblemPage() {
               Sample I/O (optional)
             </h2>
             <p className="text-xs text-muted mb-4">
-              Add example input/output pairs shown to users. At least one non-empty pair is recommended.
+              Add example input/output pairs shown to users. Use the <strong>exact format</strong> your problem expects (e.g. space-separated numbers like <code className="bg-white/10 px-1 rounded">2 3</code>, or one value per line). At least one non-empty pair is recommended.
             </p>
             <div className="space-y-4">
               {examples.map((ex, i) => (
@@ -397,12 +397,12 @@ export default function AdminNewProblemPage() {
                   </div>
                   <div className="grid sm:grid-cols-2 gap-2">
                     <label className="grid gap-1">
-                      <span className="text-xs text-muted">Input</span>
+                      <span className="text-xs text-muted">Input (match problem format exactly)</span>
                       <textarea
                         value={ex.input}
                         onChange={(e) => updateExample(i, "input", e.target.value)}
                         className="min-h-[60px] rounded-lg bg-black/40 dark:bg-white/5 border border-border px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-brand/50"
-                        placeholder="Sample input"
+                        placeholder="e.g. 2 3 for two space-separated numbers, or one value per line"
                       />
                     </label>
                     <label className="grid gap-1">

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Container, Card } from "@/components/ui";
 import { getCourse, type SyllabusModule, type SyllabusLesson } from "@/lib/data";
 
@@ -16,6 +17,11 @@ export default function CourseDetailPage({ params }: { params: { id: string } })
 
   return (
     <Container className="py-10">
+      <div className="mb-6">
+        <Link href="/courses" className="text-sm text-muted hover:text-text transition">
+          ← Back to Courses
+        </Link>
+      </div>
       <div>
         <div className="text-xs tracking-[0.35em] text-muted">COURSE</div>
         <h1 className="text-3xl font-extrabold mt-2">{course.title}</h1>

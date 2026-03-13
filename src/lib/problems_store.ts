@@ -124,3 +124,48 @@ export async function addProblemsBulk(inputs: CustomProblemInput[]): Promise<{
   return { created, errors };
 }
 
+/** Whether a problem is custom (editable/deletable). Built-in problems are read-only. */
+export async function isCustomProblem(slug: string): Promise<boolean> {
+  const custom = await readCustom();
+  return custom.some((p) => p.slug === slug);
+}
+
+/** Slugs of all custom (editable) problems. */
+export async function listCustomSlugs(): Promise<string[]> {
+  const custom = await readCustom();
+  return custom.map((p) => p.slug);
+}
+
+export async function updateProblem(
+  slug: string,
+  patch: Partial<CustomProblemInput> & { statement?: string; examples?: Problem["examples"] }
+): Promise<Problem | null> {
+  const custom = await readCustom();
+  const idx = custom.findIndex((p) => p.slug === slug);
+  if (idx < 0) return null;
+  const existing = custom[idx];
+  const updated: Problem = {
+    ...existing,
+    title: patch.title ?? existing.title,
+    difficulty: patch.difficulty ?? existing.difficulty,
+    tags: patch.tags ?? existing.tags,
+    languages: patch.languages ?? existing.languages,
+    statement: (patch.statement !== undefined ? patch.statement : existing.statement) ?? "Statement coming soon.",
+    examples: patch.examples ?? existing.examples,
+    type: patch.type ?? existing.type,
+    useCases: patch.useCases !== undefined ? patch.useCases : existing.useCases,
+    runConfig: patch.runConfig !== undefined ? patch.runConfig : existing.runConfig,
+  };
+  custom[idx] = updated;
+  await writeCustom(custom);
+  return updated;
+}
+
+export async function deleteProblem(slug: string): Promise<boolean> {
+  const custom = await readCustom();
+  const filtered = custom.filter((p) => p.slug !== slug);
+  if (filtered.length === custom.length) return false;
+  await writeCustom(filtered);
+  return true;
+}
+
