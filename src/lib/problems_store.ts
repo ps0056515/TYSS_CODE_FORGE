@@ -80,3 +80,47 @@ export async function addProblem(input: CustomProblemInput): Promise<Problem> {
   return problem;
 }
 
+/** Add multiple problems in one go (e.g. bulk add by topic). Returns created problems and any per-item errors. */
+export async function addProblemsBulk(inputs: CustomProblemInput[]): Promise<{
+  created: Problem[];
+  errors: { index: number; message: string }[];
+}> {
+  const created: Problem[] = [];
+  const errors: { index: number; message: string }[] = [];
+  let custom = await readCustom();
+  const existingSlugs = new Set(custom.map((p) => p.slug).concat(builtInProblems.map((p) => p.slug)));
+
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i];
+    if (!input.title?.trim()) {
+      errors.push({ index: i, message: "Empty title" });
+      continue;
+    }
+    const baseSlug = slugify(input.slug?.trim() || input.title);
+    let slug = baseSlug || `problem-${Date.now()}-${i}`;
+    let n = 2;
+    while (existingSlugs.has(slug)) {
+      slug = `${baseSlug}-${n++}`;
+    }
+    existingSlugs.add(slug);
+
+    const problem: Problem = {
+      slug,
+      title: input.title.trim(),
+      difficulty: input.difficulty,
+      tags: input.tags ?? [],
+      languages: input.languages ?? ["javascript", "python"],
+      statement: input.statement?.trim() || "Statement coming soon.",
+      examples: input.examples ?? [],
+      type: input.type ?? "algorithm",
+      useCases: input.useCases ?? undefined,
+      runConfig: input.runConfig ?? undefined,
+    };
+    custom.push(problem);
+    created.push(problem);
+  }
+
+  if (created.length > 0) await writeCustom(custom);
+  return { created, errors };
+}
+

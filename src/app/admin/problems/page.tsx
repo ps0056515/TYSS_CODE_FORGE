@@ -28,9 +28,12 @@ export default function AdminProblemsPage() {
         <p className="text-sm text-muted mt-2 max-w-2xl">
           Add new practice problems (difficulty + allowed languages). They will appear in `/practice` for users.
         </p>
-        <div className="mt-4">
-          <a className="underline text-sm" href="/admin/problems/new">
-            + Add practice problem
+        <div className="mt-4 flex flex-wrap gap-4">
+          <a className="underline text-sm hover:text-brand transition" href="/admin/problems/new">
+            + Add single problem
+          </a>
+          <a className="underline text-sm hover:text-brand transition" href="/admin/problems/bulk">
+            + Bulk add problems (by topic)
           </a>
         </div>
       </div>

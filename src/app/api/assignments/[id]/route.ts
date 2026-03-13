@@ -66,18 +66,3 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }
 }
-
-import { NextResponse } from "next/server";
-import { getAssignment } from "@/lib/assignment-platform-store";
-
-export const runtime = "nodejs";
-
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const assignment = await getAssignment(id);
-  if (!assignment) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: assignment });
-}
