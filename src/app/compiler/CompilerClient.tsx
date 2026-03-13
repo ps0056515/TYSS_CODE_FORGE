@@ -119,19 +119,19 @@ export function CompilerClient() {
         />
       </div>
 
-      {/* Right: input + output */}
-      <div className="border-l border-border bg-black/10">
-        <div className="p-4 border-b border-border flex items-center justify-between">
+      {/* Right: input + output — error box is scrollable and never obscured */}
+      <div className="border-l border-border bg-black/10 flex flex-col min-w-0 min-h-0">
+        <div className="p-4 border-b border-border shrink-0">
           <div className="text-sm font-semibold text-text">Input / Output</div>
         </div>
 
-        <div className="p-4 space-y-4">
-          <div>
+        <div className="p-4 flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+          <div className="shrink-0">
             <div className="text-xs text-muted uppercase font-semibold tracking-widest">Input</div>
             <textarea
               value={stdin}
               onChange={(e) => setStdin(e.target.value)}
-              className="mt-2 w-full min-h-[120px] rounded-xl border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 placeholder:text-white/40 outline-none focus:ring-2 focus:ring-brand/50"
+              className="mt-2 w-full min-h-[100px] rounded-xl border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 placeholder:text-white/40 outline-none focus:ring-2 focus:ring-brand/50"
               placeholder="Enter input here (stdin)"
             />
             <div className="mt-2 text-xs text-muted">
@@ -139,9 +139,14 @@ export function CompilerClient() {
             </div>
           </div>
 
-          <div>
-            <div className="text-xs text-muted uppercase font-semibold tracking-widest">Output</div>
-            <pre className="mt-2 w-full min-h-[170px] rounded-xl border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 whitespace-pre-wrap overflow-auto">
+          <div className="flex flex-col min-h-0 flex-1">
+            <div className="text-xs text-muted uppercase font-semibold tracking-widest shrink-0">Output</div>
+            <pre
+              className={cn(
+                "mt-2 flex-1 min-h-0 w-full rounded-xl border p-3 font-mono text-sm whitespace-pre-wrap overflow-auto resize-none",
+                stderr ? "border-amber-500/50 bg-amber-950/30 text-amber-100" : "border-border bg-[#1e1e1e] text-white/90"
+              )}
+            >
               {stderr ? stderr : stdout ? stdout : "Run your code to see output."}
             </pre>
           </div>

@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Play, ListChecks, Send, Upload, FileArchive } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Play, ListChecks, Send, Upload, FileArchive, ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { Button } from "@/components/ui";
 import Editor from "@monaco-editor/react";
 import { cn } from "@/lib/cn";
@@ -114,23 +116,40 @@ console.log(solve(require("fs").readFileSync(0, "utf8")));
 `;
 }
 
+const CODE_STORAGE_KEY = "codeforge:code:";
+
 export function ProblemClient({
   starter,
   title,
   problemSlug,
-  problemType = "algorithm"
+  problemType = "algorithm",
+  assignmentId,
+  problemSlugs,
+  problemIndex,
 }: {
   starter: string;
   title: string;
   problemSlug: string;
   problemType?: "algorithm" | "project";
+  assignmentId?: string;
+  problemSlugs?: string[];
+  problemIndex?: number;
 }) {
-  const [code, setCode] = React.useState(starter);
+  const router = useRouter();
+  const [code, setCodeState] = React.useState(starter);
+  const codeRef = React.useRef(code);
+  const setCode = React.useCallback((v: string) => {
+    codeRef.current = v;
+    setCodeState(v);
+  }, []);
   const [output, setOutput] = React.useState<string>("");
   const [stdin, setStdin] = React.useState<string>("");
   const [running, setRunning] = React.useState(false);
   const [runningSamples, setRunningSamples] = React.useState(false);
   const [language, setLanguage] = React.useState<Lang>("javascript");
+  const [lastSubmitTestResults, setLastSubmitTestResults] = React.useState<
+    { input: string; expected: string; actual: string; pass: boolean }[] | null
+  >(null);
   const [sampleResults, setSampleResults] = React.useState<
     | null
     | {
@@ -175,6 +194,31 @@ export function ProblemClient({
     return () => ro.disconnect();
   }, []);
 
+  // Load saved code from localStorage when problem changes (avoids stale execution; user sees last saved)
+  React.useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(CODE_STORAGE_KEY + problemSlug) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw) as { code?: string; language?: Lang };
+        if (parsed.code) {
+          codeRef.current = parsed.code;
+          setCodeState(parsed.code);
+          if (parsed.language) setLanguage(parsed.language);
+        }
+      } else {
+        codeRef.current = starter;
+        setCodeState(starter);
+      }
+    } catch {
+      codeRef.current = starter;
+      setCodeState(starter);
+    }
+  }, [problemSlug, starter]);
+
+  const nextSlug = problemSlugs && problemIndex != null && problemIndex + 1 < problemSlugs.length ? problemSlugs[problemIndex + 1] : null;
+  const prevSlug = problemSlugs && problemIndex != null && problemIndex > 0 ? problemSlugs[problemIndex - 1] : null;
+  const assignmentParams = (idx: number) => (assignmentId ? `?assignmentId=${encodeURIComponent(assignmentId)}&problemIndex=${idx}` : "");
+
   async function refreshSubmissions() {
     const res = await fetch(`/api/submissions?problemSlug=${encodeURIComponent(problemSlug)}`);
     const data = (await res.json()) as
@@ -195,12 +239,13 @@ export function ProblemClient({
   async function run() {
     setRunning(true);
     setOutput("");
-    // Keep last sample results so Submit remains enabled after Run.
+    setLastSubmitTestResults(null);
+    const codeToRun = codeRef.current ?? code;
     try {
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language, code, input: stdin })
+        body: JSON.stringify({ language, code: codeToRun, input: stdin }),
       });
       const data = (await res.json()) as { ok: boolean; stdout?: string; stderr?: string };
       setOutput(data.ok ? data.stdout ?? "" : data.stderr ?? "Run failed.");
@@ -215,11 +260,13 @@ export function ProblemClient({
     setRunningSamples(true);
     setOutput("");
     setSampleResults(null);
+    setLastSubmitTestResults(null);
+    const codeToRun = codeRef.current ?? code;
     try {
       const res = await fetch("/api/runSamples", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemSlug, language, code })
+        body: JSON.stringify({ problemSlug, language, code: codeToRun }),
       });
       const data = (await res.json()) as
         | { ok: true; allPass: boolean; results: { pass: boolean; ok: boolean; input: string; expected: string; actual: string }[] }
@@ -244,23 +291,32 @@ export function ProblemClient({
 
   async function submit() {
     if (!sampleResults) return;
+    const codeToSubmit = codeRef.current ?? code;
     const res = await fetch("/api/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ problemSlug, language, code, samplesPass: sampleResults.allPass })
+      body: JSON.stringify({ problemSlug, language, code: codeToSubmit, samplesPass: sampleResults.allPass }),
     });
-    const data = (await res.json()) as { ok: boolean; verdict?: string; score?: number; stderr?: string };
+    const data = (await res.json()) as {
+      ok: boolean;
+      verdict?: string;
+      score?: number;
+      stderr?: string;
+      testResults?: { input: string; expected: string; actual: string; pass: boolean }[];
+    };
     if (!data.ok) {
       setOutput(data.stderr ?? "Submit failed.");
+      setLastSubmitTestResults(null);
       return;
     }
     await refreshSubmissions();
     const v = data.verdict ?? "—";
     const s = data.score != null ? ` | Score: ${data.score}` : "";
+    setLastSubmitTestResults(data.testResults ?? null);
     const hint =
       v === "RE" ? "\n\nYour code could not run successfully. Click Run to see the error, fix it, then submit again."
       : v === "TLE" ? "\n\nYour solution took too long. Try optimizing your approach and submit again."
-      : v === "WA" ? "\n\nYour output did not match expected output on some hidden tests. Re-check edge cases and formatting."
+      : v === "WA" ? "\n\nYour output did not match expected output on some hidden tests. See test details below."
       : v === "PARTIAL" ? "\n\nSome test groups passed, some failed. Improve the solution to pass all tests."
       : "";
     setOutput(`Submit completed.\nResult: ${verdictLabel(v)}${s}${hint}`);
@@ -318,6 +374,15 @@ export function ProblemClient({
     normalizeCode(lastACSubmission.code) === normalizeCode(code)
   );
   const canSubmit = sampleResults && !runningSamples && !running && !isSameCodeAsLastAC;
+
+  function saveToStorageAndNext() {
+    try {
+      const key = CODE_STORAGE_KEY + problemSlug;
+      localStorage.setItem(key, JSON.stringify({ code: codeRef.current ?? code, language }));
+    } catch {}
+    if (nextSlug != null && assignmentId != null)
+      router.push(`/practice/${nextSlug}${assignmentParams((problemIndex ?? 0) + 1)}`);
+  }
 
   async function handleSubmit() {
     if (!sampleResults) return;
@@ -467,14 +532,37 @@ export function ProblemClient({
               <div className="text-xs font-medium text-muted uppercase mb-2">Custom Input</div>
               <InputShell value={stdin} onChange={setStdin} />
             </div>
-            <div className="p-3 flex flex-col min-h-[100px]">
-              <div className="text-xs font-medium text-muted uppercase mb-2">Output</div>
-              <pre className="flex-1 min-h-[60px] rounded border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 whitespace-pre-wrap overflow-auto">
+            <div className="p-3 flex flex-col min-h-[100px] min-w-0">
+              <div className="text-xs font-medium text-muted uppercase mb-2 shrink-0">Output</div>
+              <pre className="flex-1 min-h-[60px] min-w-0 rounded border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 whitespace-pre-wrap overflow-auto">
                 {output || "Run your code to see output."}
               </pre>
             </div>
           </div>
         </>
+      )}
+
+      {/* Submission test case details (hidden test breakdown) */}
+      {lastSubmitTestResults != null && lastSubmitTestResults.length > 0 && (
+        <div className="px-4 py-3 border-t border-border bg-black/20 shrink-0">
+          <div className="text-xs font-semibold text-muted uppercase mb-2">Test case details</div>
+          <div className="space-y-2 max-h-[200px] overflow-auto">
+            {lastSubmitTestResults.map((r, i) => (
+              <div key={i} className={cn("rounded border p-2 text-xs", r.pass ? "border-emerald-500/30 bg-emerald-500/10" : "border-rose-500/30 bg-rose-500/10")}>
+                <span className={cn("font-medium", r.pass ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                  Test {i + 1}: {r.pass ? "Passed" : "Failed"}
+                </span>
+                {!r.pass && (
+                  <div className="mt-1 grid gap-1 font-mono text-muted">
+                    <div>Input: <pre className="inline whitespace-pre-wrap break-all">{r.input}</pre></div>
+                    <div>Expected: <pre className="inline whitespace-pre-wrap break-all">{r.expected}</pre></div>
+                    <div>Actual: <pre className="inline whitespace-pre-wrap break-all">{r.actual}</pre></div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Sample results + Submit reminder */}
@@ -489,9 +577,16 @@ export function ProblemClient({
             >
               {sampleResults.allPass ? "All sample tests passed." : "Some sample tests failed. Open \"View sample details\" below to see expected vs actual output."}
             </span>
-            <Button disabled={!canSubmit} onClick={handleSubmit} className="py-1.5 px-3 text-xs">
-              <Send className="h-3.5 w-3.5 mr-1" /> Submit
-            </Button>
+            <div className="flex items-center gap-2">
+              {assignmentId && nextSlug != null && (
+                <Button type="button" variant="ghost" onClick={saveToStorageAndNext} className="py-1.5 px-3 text-xs gap-1">
+                  <Save className="h-3.5 w-3.5" /> Save and Next
+                </Button>
+              )}
+              <Button disabled={!canSubmit} onClick={handleSubmit} className="py-1.5 px-3 text-xs">
+                <Send className="h-3.5 w-3.5 mr-1" /> Submit
+              </Button>
+            </div>
           </div>
           <details className="mt-2">
             <summary className="text-xs text-muted cursor-pointer">View sample details</summary>
@@ -508,6 +603,33 @@ export function ProblemClient({
               ))}
             </div>
           </details>
+        </div>
+      )}
+
+      {/* Assignment: Next / Previous question */}
+      {assignmentId && problemSlugs && problemSlugs.length > 0 && (
+        <div className="px-4 py-2 border-t border-border bg-black/10 shrink-0 flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-xs text-muted">
+            Assignment · Question {(problemIndex ?? 0) + 1} of {problemSlugs.length}
+          </span>
+          <div className="flex items-center gap-2">
+            {prevSlug != null && (
+              <Link
+                href={`/practice/${prevSlug}${assignmentParams((problemIndex ?? 1) - 1)}`}
+                className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Previous
+              </Link>
+            )}
+            {nextSlug != null && (
+              <Link
+                href={`/practice/${nextSlug}${assignmentParams((problemIndex ?? 0) + 1)}`}
+                className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
+              >
+                Next question <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
+          </div>
         </div>
       )}
 

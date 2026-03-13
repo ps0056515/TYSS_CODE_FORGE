@@ -15,7 +15,8 @@ const RunSchema = z.object({
 export const runtime = "nodejs";
 
 const MAX_OUTPUT_CHARS = 80_000;
-const TIMEOUT_MS = 2_000;
+/** Generous timeout so Java (compile+run), cold starts, and loaded servers don't false-positive as TLE. */
+const TIMEOUT_MS = 15_000;
 
 type RunResult = { ok: boolean; stdout: string; stderr: string };
 
@@ -152,6 +153,7 @@ async function runCpp(code: string, input: string) {
   return run;
 }
 
+/** Each request runs in an isolated temp dir and process; no shared state between concurrent runs. */
 export async function POST(req: Request) {
   try {
     const json = await req.json();

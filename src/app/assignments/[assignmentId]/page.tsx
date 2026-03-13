@@ -85,7 +85,7 @@ export default async function AssignmentDetailPage({
                         <span className={done ? "text-xs font-semibold text-green-600" : "text-xs text-muted"}>
                           {done ? "Completed" : best != null ? `Best ${best}` : "Not started"}
                         </span>
-                        <Link href={`/practice/${slug}`} className="text-xs text-brand hover:underline">
+                        <Link href={`/practice/${slug}?assignmentId=${assignmentId}&problemIndex=${codingSlugs.indexOf(slug)}`} className="text-xs text-brand hover:underline">
                           Open →
                         </Link>
                       </div>

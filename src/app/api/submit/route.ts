@@ -46,19 +46,24 @@ export async function POST(req: Request) {
 
     const norm = (x: string) => (x ?? "").replace(/\r\n/g, "\n").trim();
 
-    async function runOne(input: string, expected: string) {
+    /** Run one test in isolation; uses only the code from this request (no caching). */
+    async function runOne(input: string, expected: string): Promise<
+      { ok: true; pass: boolean; actual: string } | { ok: false; kind: "RE" | "TLE"; actual?: string }
+    > {
       const res = await fetch(new URL("/api/run", req.url), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language: s.language, code: s.code, input })
+        body: JSON.stringify({ language: s.language, code: s.code, input }),
       });
       const data = (await res.json()) as { ok: boolean; stdout?: string; stderr?: string };
       if (!data.ok) {
         const err = (data.stderr ?? "").toLowerCase();
-        return { ok: false, kind: err.includes("time limit exceeded") ? ("TLE" as const) : ("RE" as const) };
+        const kind = err.includes("time limit exceeded") ? ("TLE" as const) : ("RE" as const);
+        return { ok: false, kind, actual: data.stderr ?? "" };
       }
-      const pass = norm(data.stdout ?? "") === norm(expected);
-      return { ok: true, pass };
+      const actual = norm(data.stdout ?? "");
+      const pass = actual === norm(expected);
+      return { ok: true, pass, actual };
     }
 
     // Scoring
@@ -102,9 +107,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, stderr: "No hidden tests configured for this problem" }, { status: 400 });
       }
 
+      const testResults: { input: string; expected: string; actual: string; pass: boolean }[] = [];
       verdict = "AC";
       for (const t of hidden) {
         const r = await runOne(t.input, t.output);
+        const actual = r.ok ? (r as { actual: string }).actual : (r as { actual?: string }).actual ?? "";
+        const pass = r.ok && (r as { pass: boolean }).pass;
+        testResults.push({ input: t.input, expected: t.output, actual, pass });
         if (!r.ok) {
           verdict = (r as { kind: "RE" | "TLE" }).kind;
           break;
@@ -115,6 +124,22 @@ export async function POST(req: Request) {
         }
       }
       score = verdict === "AC" ? 100 : 0;
+
+      await appendSubmission({
+        id: id(),
+        createdAt: new Date().toISOString(),
+        problemSlug: s.problemSlug,
+        user,
+        language: s.language,
+        verdict,
+        score,
+        code: s.code,
+        samplesPass: s.samplesPass
+      });
+
+      const res = NextResponse.json({ ok: true, verdict, score, testResults });
+      res.cookies.set(USER_COOKIE, user, { path: "/", sameSite: "lax", maxAge: 30 * 24 * 60 * 60 });
+      return res;
     }
 
     await appendSubmission({

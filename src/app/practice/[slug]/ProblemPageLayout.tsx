@@ -8,10 +8,16 @@ import { cn } from "@/lib/cn";
 
 export function ProblemPageLayout({
   problem,
-  starter
+  starter,
+  assignmentId,
+  problemSlugs,
+  problemIndex,
 }: {
   problem: Problem;
   starter: string;
+  assignmentId?: string;
+  problemSlugs?: string[];
+  problemIndex?: number;
 }) {
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] min-h-[500px]">
@@ -105,6 +111,9 @@ export function ProblemPageLayout({
             title={problem.title}
             problemSlug={problem.slug}
             problemType={problem.type}
+            assignmentId={assignmentId}
+            problemSlugs={problemSlugs}
+            problemIndex={problemIndex}
           />
         </div>
       </div>
