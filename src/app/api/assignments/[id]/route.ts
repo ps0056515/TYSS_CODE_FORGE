@@ -22,6 +22,7 @@ const PatchSchema = z.object({
   type: z.enum(["general", "coding_set", "project_usecase"]).optional(),
   templateRepoUrl: z.string().url().optional().or(z.literal("")),
   codeforgeProblemId: z.string().optional().or(z.literal("")),
+  projectInstructions: z.string().optional(),
   codingSet: z
     .object({
       filters: z

@@ -8,7 +8,9 @@
     "start": "next start -p 3002",
     "lint": "next lint",
     "format": "prettier --write .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:sanity": "playwright test tests/sanity.spec.ts",
+    "test:sanity:ec2": "playwright test tests/sanity.spec.ts --config=playwright.sanity.config.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

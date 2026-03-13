@@ -60,6 +60,8 @@ export type Assignment = {
   codingSet?: CodingSetConfig;
   /** For type === "project_usecase": optional link to a project problem slug */
   codeforgeProblemId?: string;
+  /** For type === "project_usecase": detailed instructions for candidates */
+  projectInstructions?: string;
   createdAt: string;
 };
 

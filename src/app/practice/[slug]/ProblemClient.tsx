@@ -146,6 +146,7 @@ export function ProblemClient({
   const [stdin, setStdin] = React.useState<string>("");
   const [running, setRunning] = React.useState(false);
   const [runningSamples, setRunningSamples] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
   const [language, setLanguage] = React.useState<Lang>("javascript");
   const [lastSubmitTestResults, setLastSubmitTestResults] = React.useState<
     { input: string; expected: string; actual: string; pass: boolean }[] | null
@@ -373,7 +374,7 @@ export function ProblemClient({
     lastACSubmission.code !== undefined &&
     normalizeCode(lastACSubmission.code) === normalizeCode(code)
   );
-  const canSubmit = sampleResults && !runningSamples && !running && !isSameCodeAsLastAC;
+  const canSubmit = sampleResults && !runningSamples && !running && !isSameCodeAsLastAC && !submitting;
 
   function saveToStorageAndNext() {
     try {
@@ -385,12 +386,17 @@ export function ProblemClient({
   }
 
   async function handleSubmit() {
-    if (!sampleResults) return;
+    if (!sampleResults || submitting) return;
     if (isSameCodeAsLastAC) {
       setOutput("You have already submitted this code. Modify your code to submit again.");
       return;
     }
-    await submit();
+    setSubmitting(true);
+    try {
+      await submit();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -426,7 +432,7 @@ export function ProblemClient({
               onClick={handleSubmit}
               className="gap-1 py-1.5 px-3 text-xs ml-auto"
             >
-              <Send className="h-3.5 w-3.5" /> Submit
+              <Send className="h-3.5 w-3.5" /> {submitting ? "Submitting…" : "Submit"}
             </Button>
           </>
         ) : (
@@ -443,9 +449,10 @@ export function ProblemClient({
           {sampleResults && isSameCodeAsLastAC && (
             <span>You have already submitted this code. Change your solution to submit again.</span>
           )}
-          {sampleResults && !isSameCodeAsLastAC && !runningSamples && !running && (
+          {sampleResults && !isSameCodeAsLastAC && !runningSamples && !running && !submitting && (
             <>Run Samples passed. Click <strong>Submit</strong> to run hidden tests.</>
           )}
+          {submitting && <span className="text-amber-600 dark:text-amber-400">Submitting… please wait.</span>}
         </div>
       )}
 
@@ -584,7 +591,7 @@ export function ProblemClient({
                 </Button>
               )}
               <Button disabled={!canSubmit} onClick={handleSubmit} className="py-1.5 px-3 text-xs">
-                <Send className="h-3.5 w-3.5 mr-1" /> Submit
+                <Send className="h-3.5 w-3.5 mr-1" /> {submitting ? "Submitting…" : "Submit"}
               </Button>
             </div>
           </div>

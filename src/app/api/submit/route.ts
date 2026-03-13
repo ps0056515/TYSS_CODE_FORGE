@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { appendSubmission } from "@/lib/submissions";
+import { appendSubmission, getLastSubmissionForUserProblem } from "@/lib/submissions";
 import { getProblemBySlug } from "@/lib/problems_store";
 import { getUserAsync, USER_COOKIE } from "@/lib/auth";
+
+const DEDUPE_WINDOW_MS = 4000;
 
 export const runtime = "nodejs";
 
@@ -35,6 +37,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, stderr: "Problem not found" }, { status: 404 });
     }
 
+    const norm = (x: string) => (x ?? "").replace(/\r\n/g, "\n").trim();
+    const last = await getLastSubmissionForUserProblem(user, s.problemSlug);
+    if (last) {
+      const lastTime = new Date(last.createdAt).getTime();
+      if (Date.now() - lastTime < DEDUPE_WINDOW_MS && norm(last.code ?? "") === norm(s.code)) {
+        const res = NextResponse.json({ ok: true, verdict: last.verdict, score: last.score });
+        res.cookies.set(USER_COOKIE, user, { path: "/", sameSite: "lax", maxAge: 30 * 24 * 60 * 60 });
+        return res;
+      }
+    }
+
     // Project problems (type === "project"): would run runConfig.testCommand against uploaded
     // codebase, read result.json for useCaseResults + score. Not implemented yet — see docs/EVALUATION_LOGIC.md.
     if (problem.type === "project") {
@@ -43,8 +56,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    const norm = (x: string) => (x ?? "").replace(/\r\n/g, "\n").trim();
 
     /** Run one test in isolation; uses only the code from this request (no caching). */
     async function runOne(input: string, expected: string): Promise<

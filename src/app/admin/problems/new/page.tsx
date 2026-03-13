@@ -164,7 +164,7 @@ export default function AdminNewProblemPage() {
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="h-11 rounded-xl bg-black/40 dark:bg-white/5 border border-border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/50"
+                className="h-11 rounded-xl bg-bg border border-border px-4 text-sm text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg focus:border-brand/50"
                 placeholder="e.g. Reverse a String"
               />
             </label>
@@ -174,7 +174,7 @@ export default function AdminNewProblemPage() {
                 <input
                   value={slugOverride}
                   onChange={(e) => setSlugOverride(e.target.value)}
-                  className="flex-1 min-w-[200px] h-11 rounded-xl bg-black/40 dark:bg-white/5 border border-border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/50"
+                  className="flex-1 min-w-[200px] h-11 rounded-xl bg-bg border border-border px-4 text-sm text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg focus:border-brand/50"
                   placeholder={suggestedSlug || "auto-generated from title"}
                 />
                 <Button
@@ -242,7 +242,7 @@ export default function AdminNewProblemPage() {
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value as "Easy" | "Medium" | "Hard")}
-                className="h-11 rounded-xl bg-black/40 dark:bg-white/5 border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-brand/50 max-w-[140px]"
+                className="h-11 rounded-xl bg-bg border border-border px-3 text-sm text-text outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg max-w-[140px]"
               >
                 {(["Easy", "Medium", "Hard"] as const).map((d) => (
                   <option key={d} value={d}>{d}</option>
@@ -315,7 +315,7 @@ export default function AdminNewProblemPage() {
               <input
                 value={customTagInput}
                 onChange={(e) => setCustomTagInput(e.target.value)}
-                className="h-11 rounded-xl bg-black/40 dark:bg-white/5 border border-border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/50"
+                className="h-11 rounded-xl bg-bg border border-border px-4 text-sm text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg focus:border-brand/50"
                 placeholder="e.g. basics, loops, conditionals"
               />
             </label>
@@ -364,7 +364,7 @@ export default function AdminNewProblemPage() {
             <textarea
               value={statement}
               onChange={(e) => setStatement(e.target.value)}
-              className="min-h-[160px] rounded-xl bg-black/40 dark:bg-white/5 border border-border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand/50 resize-y"
+              className="min-h-[160px] rounded-xl bg-bg border border-border px-4 py-3 text-sm text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg resize-y"
               placeholder="Describe the problem, constraints, and I/O format..."
             />
           </label>
@@ -383,7 +383,7 @@ export default function AdminNewProblemPage() {
               {examples.map((ex, i) => (
                 <div
                   key={i}
-                  className="grid gap-2 rounded-xl border border-border p-4 bg-black/20 dark:bg-white/5"
+                  className="grid gap-2 rounded-xl border border-border p-4 bg-card/50"
                 >
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-muted">Example {i + 1}</span>
@@ -401,7 +401,7 @@ export default function AdminNewProblemPage() {
                       <textarea
                         value={ex.input}
                         onChange={(e) => updateExample(i, "input", e.target.value)}
-                        className="min-h-[60px] rounded-lg bg-black/40 dark:bg-white/5 border border-border px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-brand/50"
+                        className="min-h-[60px] rounded-lg bg-bg border border-border px-3 py-2 text-xs font-mono text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
                         placeholder="e.g. 2 3 for two space-separated numbers, or one value per line"
                       />
                     </label>
@@ -410,7 +410,7 @@ export default function AdminNewProblemPage() {
                       <textarea
                         value={ex.output}
                         onChange={(e) => updateExample(i, "output", e.target.value)}
-                        className="min-h-[60px] rounded-lg bg-black/40 dark:bg-white/5 border border-border px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-brand/50"
+                        className="min-h-[60px] rounded-lg bg-bg border border-border px-3 py-2 text-xs font-mono text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
                         placeholder="Expected output"
                       />
                     </label>
@@ -420,7 +420,7 @@ export default function AdminNewProblemPage() {
                     <input
                       value={ex.explanation}
                       onChange={(e) => updateExample(i, "explanation", e.target.value)}
-                      className="rounded-lg bg-black/40 dark:bg-white/5 border border-border px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand/50"
+                      className="rounded-lg bg-bg border border-border px-3 py-2 text-xs text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
                       placeholder="Short explanation"
                     />
                   </label>

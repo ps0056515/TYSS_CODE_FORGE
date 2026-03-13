@@ -20,6 +20,7 @@ type Assignment = {
   dueAt: string;
   type?: "general" | "coding_set" | "project_usecase";
   codeforgeProblemId?: string;
+  projectInstructions?: string;
   codingSet?: {
     filters?: {
       tags?: string[];
@@ -93,10 +94,11 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
     const desiredCount = Math.max(1, Math.min(200, parseInt(count || "20", 10) || 20));
     const q = search.trim().toLowerCase();
 
+    const langList = (p: Problem) => (p.languages ?? []).map((x) => String(x).toLowerCase());
     const candidates = problems
       .filter((p) => (p.type ?? "algorithm") === "algorithm")
       .filter((p) => (diffs.length ? diffs.includes(p.difficulty) : true))
-      .filter((p) => (langs.length ? langs.some((l) => p.languages.includes(l)) : true))
+      .filter((p) => (langs.length ? langs.some((l) => langList(p).includes(l.toLowerCase())) : true))
       .filter((p) => (tags.length ? tags.some((t) => p.tags?.includes(t)) : true))
       .filter((p) => (q ? `${p.slug} ${p.title}`.toLowerCase().includes(q) : true))
       .sort((a, b) => a.title.localeCompare(b.title));
@@ -160,6 +162,7 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
     const payload: Partial<Assignment> = {
       type: assignment.type ?? "general",
       codeforgeProblemId: assignment.codeforgeProblemId ?? "",
+      projectInstructions: assignment.projectInstructions,
       codingSet: assignment.type === "coding_set" ? assignment.codingSet : undefined,
     };
     fetch(`/api/assignments/${encodeURIComponent(assignmentId)}`, {
@@ -205,17 +208,29 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
           </label>
 
           {assignment.type === "project_usecase" && (
-            <label>
-              <span className="block text-xs text-muted mb-1">Project problem slug</span>
-              <input
-                type="text"
-                value={assignment.codeforgeProblemId ?? ""}
-                onChange={(e) => setAssignment({ ...assignment, codeforgeProblemId: e.target.value })}
-                className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
-                placeholder="e.g. cart-module"
-              />
-              <span className="block text-xs text-muted mt-1">This should match a CodeForge project problem slug.</span>
-            </label>
+            <>
+              <label>
+                <span className="block text-xs text-muted mb-1">Project problem slug</span>
+                <input
+                  type="text"
+                  value={assignment.codeforgeProblemId ?? ""}
+                  onChange={(e) => setAssignment({ ...assignment, codeforgeProblemId: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
+                  placeholder="e.g. cart-module"
+                />
+                <span className="block text-xs text-muted mt-1">This should match a CodeForge project problem slug.</span>
+              </label>
+              <label className="sm:col-span-2">
+                <span className="block text-xs text-muted mb-1">Detailed instructions for candidates</span>
+                <textarea
+                  value={assignment.projectInstructions ?? ""}
+                  onChange={(e) => setAssignment({ ...assignment, projectInstructions: e.target.value })}
+                  className="w-full min-h-[120px] rounded-lg border border-border bg-bg px-3 py-2 text-sm resize-y"
+                  placeholder="Describe project requirements, deliverables, evaluation criteria, and any setup or submission instructions..."
+                />
+                <span className="block text-xs text-muted mt-1">Rich context so candidates understand what to build and how it will be assessed.</span>
+              </label>
+            </>
           )}
         </div>
 

@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Card, Button } from "@/components/ui";
+import { Pencil } from "lucide-react";
 
 type Batch = { id: string; name: string; slug: string; skill: string; startDate: string; endDate: string };
 
@@ -20,6 +21,8 @@ export function AdminBatchesClient({
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editBatch, setEditBatch] = React.useState({ name: "", skill: "", startDate: "", endDate: "" });
 
   const load = React.useCallback(() => {
     setLoading(true);
@@ -126,21 +129,42 @@ export function AdminBatchesClient({
         ) : (
           <ul className="space-y-2">
             {batches.map((b) => (
-              <li key={b.id}>
-                <Link
-                  href={`/admin/batches/${b.id}`}
-                  className="block rounded-lg border border-border bg-card/80 p-4 hover:border-brand/30 transition"
-                >
+              <li key={b.id} className="rounded-lg border border-border bg-card/80 p-4">
+                {editingId === b.id ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input type="text" value={editBatch.name} onChange={(e) => setEditBatch((p) => ({ ...p, name: e.target.value }))} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm" placeholder="Batch name" />
+                      <input type="text" value={editBatch.skill} onChange={(e) => setEditBatch((p) => ({ ...p, skill: e.target.value }))} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm" placeholder="Skill" />
+                      <input type="date" value={editBatch.startDate} onChange={(e) => setEditBatch((p) => ({ ...p, startDate: e.target.value }))} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm" />
+                      <input type="date" value={editBatch.endDate} onChange={(e) => setEditBatch((p) => ({ ...p, endDate: e.target.value }))} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="button" onClick={() => {
+                        fetch(`/api/batches/${encodeURIComponent(b.id)}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(editBatch),
+                        })
+                          .then((r) => r.json())
+                          .then((d) => { if (d.ok) { load(); setEditingId(null); } else alert(d.error || "Failed"); });
+                      }} disabled={!editBatch.name.trim()}>Save</Button>
+                      <Button type="button" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
                   <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
+                    <Link href={`/admin/batches/${b.id}`} className="min-w-0 flex-1">
                       <div className="font-medium truncate">{b.name}</div>
                       <div className="text-xs text-muted mt-0.5 truncate">
                         {b.skill} · {b.startDate} – {b.endDate}
                       </div>
+                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button type="button" onClick={() => { setEditingId(b.id); setEditBatch({ name: b.name, skill: b.skill, startDate: b.startDate, endDate: b.endDate }); }} className="p-2 rounded-lg border border-border text-muted hover:text-text hover:bg-white/5" title="Edit"><Pencil className="h-4 w-4" /></button>
+                      <Link href={`/admin/batches/${b.id}`} className="text-sm text-brand">Add assignments →</Link>
                     </div>
-                    <div className="text-sm text-brand shrink-0">Add assignments →</div>
                   </div>
-                </Link>
+                )}
               </li>
             ))}
           </ul>

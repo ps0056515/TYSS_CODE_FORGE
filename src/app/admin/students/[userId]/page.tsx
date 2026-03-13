@@ -70,6 +70,9 @@ export default async function AdminStudentProfilePage({
 
   const atRiskCount = rows.filter((r) => r.risk.atRisk).length;
   const studentSubs = subs.filter((s) => s.user === decodedId).slice(0, 12);
+  const totalSubs = subs.filter((s) => s.user === decodedId).length;
+  const passedSubs = subs.filter((s) => s.user === decodedId && (s.verdict === "AC" || s.score === 100)).length;
+  const successRate = totalSubs > 0 ? Math.round((passedSubs / totalSubs) * 100) : 0;
 
   return (
     <Container className="py-8 md:py-10">
@@ -102,12 +105,25 @@ export default async function AdminStudentProfilePage({
         </div>
       </header>
 
-      <div className="grid sm:grid-cols-2 gap-4 mb-10">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         <DashboardKpiCard
           label="Assignments joined"
           value={rows.length}
           icon={ListTodo}
           accent="brand"
+        />
+        <DashboardKpiCard
+          label="Total submissions"
+          value={totalSubs}
+          icon={Activity}
+          accent="neutral"
+        />
+        <DashboardKpiCard
+          label="Passed (AC)"
+          value={passedSubs}
+          icon={Activity}
+          accent="brand"
+          subtitle={`Success rate: ${successRate}%`}
         />
         <DashboardKpiCard
           label="At-risk flags"
@@ -137,6 +153,7 @@ export default async function AdminStudentProfilePage({
                     <th className="text-left p-4 font-medium text-text">Batch</th>
                     <th className="text-left p-4 font-medium text-text">Due</th>
                     <th className="text-left p-4 font-medium text-text">Progress</th>
+                    <th className="text-left p-4 font-medium text-text">Repo</th>
                     <th className="text-left p-4 font-medium text-text">Risk</th>
                     <th className="text-right p-4 font-medium text-text">Open</th>
                   </tr>
@@ -171,6 +188,20 @@ export default async function AdminStudentProfilePage({
                             </span>
                           ) : (
                             "—"
+                          )}
+                        </td>
+                        <td className="p-4">
+                          {r.enrolment.repoUrl ? (
+                            <a
+                              href={r.enrolment.repoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-brand hover:underline"
+                            >
+                              Open repo
+                            </a>
+                          ) : (
+                            <span className="text-muted">—</span>
                           )}
                         </td>
                         <td className="p-4">

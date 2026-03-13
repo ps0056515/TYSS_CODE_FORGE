@@ -86,6 +86,18 @@ export async function getOrganization(id: string): Promise<Organization | null> 
   return list.find((o) => o.id === id) ?? null;
 }
 
+export async function updateOrganization(id: string, patch: { name: string }): Promise<Organization | null> {
+  const list = await listOrganizations();
+  const idx = list.findIndex((o) => o.id === id);
+  if (idx < 0) return null;
+  const name = patch.name.trim();
+  const slug = slugify(name);
+  const existing = list.find((o) => o.slug === slug && o.id !== id);
+  list[idx] = { ...list[idx], name, slug: existing ? `${slug}-${Date.now().toString(36)}` : slug };
+  await writeJson(ORGS_FILE, list);
+  return list[idx];
+}
+
 // --- Business Units
 export async function listBusinessUnits(organizationId: string): Promise<BusinessUnit[]> {
   const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
@@ -115,6 +127,15 @@ export async function createBusinessUnit(input: {
 export async function getBusinessUnit(id: string): Promise<BusinessUnit | null> {
   const raw = await readJson<BusinessUnit[]>(BUS_FILE, []);
   return raw.find((b) => b.id === id) ?? null;
+}
+
+export async function updateBusinessUnit(id: string, patch: { name: string }): Promise<BusinessUnit | null> {
+  const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
+  const idx = list.findIndex((b) => b.id === id);
+  if (idx < 0) return null;
+  list[idx] = { ...list[idx], name: patch.name.trim(), slug: slugify(patch.name.trim()) };
+  await writeJson(BUS_FILE, list);
+  return list[idx];
 }
 
 // --- Batches
@@ -152,6 +173,27 @@ export async function createBatch(input: {
 export async function getBatch(id: string): Promise<Batch | null> {
   const raw = await readJson<Batch[]>(BATCHES_FILE, []);
   return raw.find((b) => b.id === id) ?? null;
+}
+
+export async function updateBatch(
+  id: string,
+  patch: Partial<Pick<Batch, "name" | "skill" | "startDate" | "endDate">>
+): Promise<Batch | null> {
+  const list = await readJson<Batch[]>(BATCHES_FILE, []);
+  const idx = list.findIndex((b) => b.id === id);
+  if (idx < 0) return null;
+  const curr = list[idx];
+  const name = patch.name !== undefined ? patch.name.trim() : curr.name;
+  list[idx] = {
+    ...curr,
+    name: patch.name !== undefined ? patch.name.trim() : curr.name,
+    slug: patch.name !== undefined ? slugify(patch.name.trim()) : curr.slug,
+    skill: patch.skill !== undefined ? patch.skill.trim() : curr.skill,
+    startDate: patch.startDate ?? curr.startDate,
+    endDate: patch.endDate ?? curr.endDate,
+  };
+  await writeJson(BATCHES_FILE, list);
+  return list[idx];
 }
 
 // --- Assignments
@@ -204,7 +246,7 @@ export async function getAssignmentBySlug(slug: string): Promise<Assignment | nu
 
 export async function updateAssignment(
   id: string,
-  patch: Partial<Pick<Assignment, "title" | "description" | "dueAt" | "type" | "codingSet" | "codeforgeProblemId" | "templateRepoUrl">>
+  patch: Partial<Pick<Assignment, "title" | "description" | "dueAt" | "type" | "codingSet" | "codeforgeProblemId" | "templateRepoUrl" | "projectInstructions">>
 ): Promise<Assignment | null> {
   const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
   const idx = list.findIndex((a) => a.id === id);
@@ -217,6 +259,7 @@ export async function updateAssignment(
     description: (patch.description ?? curr.description).trim(),
     templateRepoUrl: (patch.templateRepoUrl ?? curr.templateRepoUrl)?.trim() || undefined,
     codeforgeProblemId: (patch.codeforgeProblemId ?? curr.codeforgeProblemId)?.trim() || undefined,
+    projectInstructions: patch.projectInstructions !== undefined ? patch.projectInstructions : curr.projectInstructions,
   };
   // keep slug stable for links
   list[idx] = next;

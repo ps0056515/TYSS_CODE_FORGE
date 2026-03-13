@@ -36,6 +36,41 @@ export async function appendSubmission(s: Submission) {
   await fs.appendFile(FILE, JSON.stringify(s) + "\n", "utf8");
 }
 
+/** Returns the most recent submission for this user+problem (for dedupe/rate limit). */
+export async function getLastSubmissionForUserProblem(
+  userId: string,
+  problemSlug: string
+): Promise<Submission | null> {
+  try {
+    const raw = await fs.readFile(FILE, "utf8");
+    const lines = raw.split("\n").filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const parsed = JSON.parse(lines[i]) as Submission;
+        if (parsed.problemSlug === problemSlug && parsed.user === userId) return parsed;
+      } catch {
+        // skip
+      }
+    }
+  } catch {
+    // no file
+  }
+  return null;
+}
+
+/** Dedupe: return submissions with consecutive duplicates (same user, problemSlug, code within 60s) collapsed to one. */
+export function dedupeSubmissions(items: Submission[], windowMs = 60_000): Submission[] {
+  const seen = new Map<string, number>();
+  return items.filter((s) => {
+    const key = `${s.user}:${s.problemSlug}:${(s.code ?? "").trim().slice(0, 200)}`;
+    const t = new Date(s.createdAt).getTime();
+    const last = seen.get(key);
+    if (last != null && t - last < windowMs) return false;
+    seen.set(key, t);
+    return true;
+  });
+}
+
 export async function listSubmissions(problemSlug: string, limit = 25, user?: string | null): Promise<Submission[]> {
   try {
     const raw = await fs.readFile(FILE, "utf8");
@@ -60,7 +95,7 @@ export async function listSubmissions(problemSlug: string, limit = 25, user?: st
         // ignore bad lines
       }
     }
-    return items;
+    return dedupeSubmissions(items);
   } catch {
     return [];
   }
@@ -87,7 +122,7 @@ export async function listAllSubmissions(): Promise<Submission[]> {
         // ignore bad lines
       }
     }
-    return items;
+    return dedupeSubmissions(items);
   } catch {
     return [];
   }
