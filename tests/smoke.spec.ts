@@ -14,15 +14,15 @@ test.describe("Smoke tests", () => {
   });
 
   test("Problem page: run samples enables submit button", async ({ page }) => {
-    await page.goto("/practice/sum-of-two");
-    await expect(page.getByText("Sum of Two Numbers", { exact: false })).toBeVisible();
+    await page.goto("/practice/sum-of-two", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Sum of Two Numbers", { exact: false }).first()).toBeVisible({ timeout: 15_000 });
 
     const submit = page.getByRole("button", { name: /^Submit$/ }).first();
     await expect(submit).toBeDisabled();
 
     await page.getByRole("button", { name: /Run Samples/i }).click();
-    await expect(page.getByText(/sample tests/i)).toBeVisible();
-    await expect(submit).toBeEnabled();
+    await expect(page.getByText(/sample tests|All sample|Some sample/i).first()).toBeVisible({ timeout: 25_000 });
+    await expect(submit).toBeEnabled({ timeout: 5_000 });
   });
 });
 

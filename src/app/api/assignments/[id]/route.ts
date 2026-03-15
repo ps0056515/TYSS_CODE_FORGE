@@ -19,6 +19,8 @@ const PatchSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
   dueAt: z.string().optional(),
+  startAt: z.string().optional().or(z.literal("")),
+  endAt: z.string().optional().or(z.literal("")),
   type: z.enum(["general", "coding_set", "project_usecase"]).optional(),
   templateRepoUrl: z.string().url().optional().or(z.literal("")),
   codeforgeProblemId: z.string().optional().or(z.literal("")),
@@ -57,6 +59,8 @@ export async function PATCH(
       ...parsed.data,
       templateRepoUrl: parsed.data.templateRepoUrl || undefined,
       codeforgeProblemId: parsed.data.codeforgeProblemId || undefined,
+      startAt: parsed.data.startAt || undefined,
+      endAt: parsed.data.endAt || undefined,
     };
     const updated = await updateAssignment(id, patch);
     if (!updated) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });

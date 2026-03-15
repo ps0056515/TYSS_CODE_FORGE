@@ -1,5 +1,5 @@
 import { Container, Card } from "@/components/ui";
-import { getUser, isAdminUser } from "@/lib/auth";
+import { getUserAsync, isAdminUser } from "@/lib/auth";
 import Link from "next/link";
 import { listAllAssignments } from "@/lib/assignment-platform-store";
 import { loadAllSubmissionsCached } from "@/lib/dashboard-metrics";
@@ -8,7 +8,7 @@ import { DashboardCard } from "@/components/dashboard";
 import { ArrowLeft, Clock, ChevronRight } from "lucide-react";
 
 export default async function OverdueStudentsPage() {
-  const user = getUser();
+  const user = await getUserAsync();
   const isAdmin = isAdminUser(user);
   if (!user || !isAdmin) {
     return (

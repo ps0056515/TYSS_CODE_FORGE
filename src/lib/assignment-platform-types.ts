@@ -54,6 +54,10 @@ export type Assignment = {
   slug: string;
   description: string;
   dueAt: string; // ISO datetime
+  /** Optional: when the assignment becomes available (default: immediately) */
+  startAt?: string; // ISO datetime
+  /** Optional: when the assignment closes (default: use dueAt) */
+  endAt?: string; // ISO datetime
   type?: AssignmentType;
   templateRepoUrl?: string;
   /** For type === "coding_set": configuration */

@@ -1,5 +1,5 @@
 import { Container, Card } from "@/components/ui";
-import { getUser, isAdminUser } from "@/lib/auth";
+import { getUserAsync, isAdminUser } from "@/lib/auth";
 import Link from "next/link";
 import { loadAllSubmissionsCached } from "@/lib/dashboard-metrics";
 import { getActiveLearnersList } from "@/lib/dashboard-lists";
@@ -7,7 +7,7 @@ import { DashboardCard } from "@/components/dashboard";
 import { ArrowLeft, Users, ChevronRight } from "lucide-react";
 
 export default async function ActiveLearnersPage() {
-  const user = getUser();
+  const user = await getUserAsync();
   const isAdmin = isAdminUser(user);
   if (!user || !isAdmin) {
     return (

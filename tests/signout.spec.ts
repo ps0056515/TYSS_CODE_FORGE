@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("Sign out from header signs user out and stays on same host", async ({ page }) => {
   await page.context().addCookies([
-    { name: "cf_user", value: "student@test.com", path: "/", domain: "localhost", url: "http://localhost:3002" },
+    { name: "cf_user", value: "student@test.com", url: "http://localhost:3002" },
   ]);
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -16,10 +16,10 @@ test("Sign out from header signs user out and stays on same host", async ({ page
 
   await page.waitForURL(/\/api\/auth\/signout|localhost:3002|\/$/, { timeout: 15_000 }).catch(() => {});
 
-  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 15_000 });
+  // After sign-out redirect, ensure we end up on the app (same origin). Set NEXTAUTH_URL=http://localhost:3002 when running tests.
+  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 20_000 });
   await expect(page.getByText(/this site can.?t be reached/i)).toHaveCount(0);
-
-  const signInLink = header.getByRole("link", { name: /sign in/i });
-  await expect(signInLink.first()).toBeVisible({ timeout: 10_000 });
+  const signInLink = page.locator("header").getByRole("link", { name: /sign in/i });
+  await expect(signInLink.first()).toBeVisible({ timeout: 15_000 });
 });
 

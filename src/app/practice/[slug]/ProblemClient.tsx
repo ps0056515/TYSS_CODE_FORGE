@@ -528,8 +528,8 @@ export function ProblemClient({
         </div>
       ) : (
         <>
-          {/* Editor — fills available space */}
-          <div ref={editorContainerRef} className="flex-1 min-h-0 flex flex-col">
+          {/* Editor — fills available space with reliable min height */}
+          <div ref={editorContainerRef} className="flex-1 min-h-[280px] flex flex-col">
             <EditorShell language={language} value={code} onChange={setCode} height={editorHeight} />
           </div>
 

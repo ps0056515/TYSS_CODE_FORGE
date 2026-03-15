@@ -4,7 +4,12 @@ import Link from "next/link";
 import { AssignmentsListClient } from "./AssignmentsListClient";
 
 export default async function AssignmentsPage() {
-  const user = await getUserAsync();
+  let user: string | null = null;
+  try {
+    user = await getUserAsync();
+  } catch {
+    user = null;
+  }
   return (
     <Container className="py-10">
       <h1 className="text-2xl font-extrabold">My assignments</h1>

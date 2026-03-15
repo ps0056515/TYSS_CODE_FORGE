@@ -1,8 +1,10 @@
 import { Container, Card } from "@/components/ui";
-import { getUser, isAdminUser } from "@/lib/auth";
+import { getUserAsync, isAdminUser } from "@/lib/auth";
 
-export default function AdminPage() {
-  const user = getUser();
+export const dynamic = "force-dynamic";
+
+export default async function AdminPage() {
+  const user = await getUserAsync();
   const isAdmin = isAdminUser(user);
 
   if (!user || !isAdmin) {

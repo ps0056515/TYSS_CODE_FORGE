@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Container, Card } from "@/components/ui";
 import { getUserAsync, isAdminUser } from "@/lib/auth";
 import { AdminProblemsClient } from "./AdminProblemsClient";
@@ -20,5 +21,9 @@ export default async function AdminProblemsPage() {
     );
   }
 
-  return <AdminProblemsClient />;
+  return (
+    <Suspense fallback={<Container className="py-10"><p className="text-muted">Loading…</p></Container>}>
+      <AdminProblemsClient />
+    </Suspense>
+  );
 }

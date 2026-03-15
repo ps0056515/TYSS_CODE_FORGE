@@ -1,5 +1,5 @@
 import { Container, Card } from "@/components/ui";
-import { getUser, isAdminUser } from "@/lib/auth";
+import { getUserAsync, isAdminUser } from "@/lib/auth";
 import {
   getBatch,
   listAssignments,
@@ -33,7 +33,7 @@ export default async function BatchCommandCenterPage({
 }: {
   params: Promise<{ batchId: string }>;
 }) {
-  const user = getUser();
+  const user = await getUserAsync();
   const isAdmin = isAdminUser(user);
   if (!user || !isAdmin) {
     return (

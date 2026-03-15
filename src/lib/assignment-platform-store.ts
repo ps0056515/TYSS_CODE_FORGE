@@ -17,6 +17,23 @@ const ASSIGNMENTS_FILE = path.join(DATA_DIR, "assignments.json");
 const ENROLMENTS_FILE = path.join(DATA_DIR, "enrolments.json");
 const MATERIALS_FILE = path.join(DATA_DIR, "materials.json");
 
+const ENROLMENTS_CACHE_TTL_MS = 8_000;
+let enrolmentsCache: { list: Enrolment[]; at: number } | null = null;
+
+async function readEnrolments(): Promise<Enrolment[]> {
+  const now = Date.now();
+  if (enrolmentsCache && now - enrolmentsCache.at < ENROLMENTS_CACHE_TTL_MS) {
+    return enrolmentsCache.list;
+  }
+  const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
+  enrolmentsCache = { list, at: now };
+  return list;
+}
+
+function invalidateEnrolmentsCache() {
+  enrolmentsCache = null;
+}
+
 function slugify(s: string): string {
   return s
     .toLowerCase()
@@ -246,7 +263,7 @@ export async function getAssignmentBySlug(slug: string): Promise<Assignment | nu
 
 export async function updateAssignment(
   id: string,
-  patch: Partial<Pick<Assignment, "title" | "description" | "dueAt" | "type" | "codingSet" | "codeforgeProblemId" | "templateRepoUrl" | "projectInstructions">>
+  patch: Partial<Pick<Assignment, "title" | "description" | "dueAt" | "startAt" | "endAt" | "type" | "codingSet" | "codeforgeProblemId" | "templateRepoUrl" | "projectInstructions">>
 ): Promise<Assignment | null> {
   const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
   const idx = list.findIndex((a) => a.id === id);
@@ -258,6 +275,8 @@ export async function updateAssignment(
     title: (patch.title ?? curr.title).trim(),
     description: (patch.description ?? curr.description).trim(),
     templateRepoUrl: (patch.templateRepoUrl ?? curr.templateRepoUrl)?.trim() || undefined,
+    startAt: patch.startAt !== undefined ? (patch.startAt || undefined) : curr.startAt,
+    endAt: patch.endAt !== undefined ? (patch.endAt || undefined) : curr.endAt,
     codeforgeProblemId: (patch.codeforgeProblemId ?? curr.codeforgeProblemId)?.trim() || undefined,
     projectInstructions: patch.projectInstructions !== undefined ? patch.projectInstructions : curr.projectInstructions,
   };
@@ -269,18 +288,19 @@ export async function updateAssignment(
 
 // --- Enrolments
 export async function listEnrolments(assignmentId: string): Promise<Enrolment[]> {
-  const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
+  const list = await readEnrolments();
   return list
     .filter((e) => e.assignmentId === assignmentId)
     .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt));
 }
 
 export async function getEnrolment(assignmentId: string, userId: string): Promise<Enrolment | null> {
-  const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
+  const list = await readEnrolments();
   return list.find((e) => e.assignmentId === assignmentId && e.userId === userId) ?? null;
 }
 
 export async function joinAssignment(assignmentId: string, userId: string): Promise<Enrolment> {
+  invalidateEnrolmentsCache();
   const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
   const existing = list.find((e) => e.assignmentId === assignmentId && e.userId === userId);
   if (existing) return existing;
@@ -292,11 +312,23 @@ export async function joinAssignment(assignmentId: string, userId: string): Prom
   };
   list.push(enrolment);
   await writeJson(ENROLMENTS_FILE, list);
+  invalidateEnrolmentsCache();
   return enrolment;
 }
 
-export async function listEnrolmentsByUser(userId: string): Promise<Enrolment[]> {
+export async function removeEnrolment(assignmentId: string, userId: string): Promise<boolean> {
+  invalidateEnrolmentsCache();
   const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
+  const idx = list.findIndex((e) => e.assignmentId === assignmentId && e.userId === userId);
+  if (idx < 0) return false;
+  list.splice(idx, 1);
+  await writeJson(ENROLMENTS_FILE, list);
+  invalidateEnrolmentsCache();
+  return true;
+}
+
+export async function listEnrolmentsByUser(userId: string): Promise<Enrolment[]> {
+  const list = await readEnrolments();
   return list.filter((e) => e.userId === userId);
 }
 

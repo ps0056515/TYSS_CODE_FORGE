@@ -31,9 +31,14 @@ export type Submission = {
 const DATA_DIR = path.join(process.cwd(), "data");
 const FILE = path.join(DATA_DIR, "submissions.jsonl");
 
+/** In-memory cache for listAllSubmissions to avoid repeated file reads (slow pages). Invalidated on append. */
+const ALL_SUBS_CACHE_TTL_MS = 10_000; // 10 seconds
+let allSubsCache: { data: Submission[]; at: number } | null = null;
+
 export async function appendSubmission(s: Submission) {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.appendFile(FILE, JSON.stringify(s) + "\n", "utf8");
+  allSubsCache = null; // so next listAllSubmissions sees the new submission
 }
 
 /** Returns the most recent submission for this user+problem (for dedupe/rate limit). */
@@ -101,29 +106,39 @@ export async function listSubmissions(problemSlug: string, limit = 25, user?: st
   }
 }
 
+function parseAllSubmissionsFromRaw(raw: string): Submission[] {
+  const lines = raw.split("\n").filter(Boolean);
+  const items: Submission[] = [];
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try {
+      const parsed = JSON.parse(lines[i]) as Submission;
+      const anyParsed = parsed as unknown as { allPass?: boolean; verdict?: Submission["verdict"]; score?: number };
+      if (!anyParsed.verdict && typeof anyParsed.allPass === "boolean") {
+        (parsed as Submission).verdict = anyParsed.allPass ? "AC" : "WA";
+      }
+      if (typeof anyParsed.score !== "number") {
+        (parsed as Submission).score = parsed.verdict === "AC" ? 100 : 0;
+      }
+      items.push(parsed);
+    } catch {
+      // ignore bad lines
+    }
+  }
+  return dedupeSubmissions(items);
+}
+
 export async function listAllSubmissions(): Promise<Submission[]> {
+  const now = Date.now();
+  if (allSubsCache && now - allSubsCache.at < ALL_SUBS_CACHE_TTL_MS) {
+    return allSubsCache.data;
+  }
   try {
     const raw = await fs.readFile(FILE, "utf8");
-    const lines = raw.split("\n").filter(Boolean);
-    const items: Submission[] = [];
-    for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        const parsed = JSON.parse(lines[i]) as Submission;
-        // Backward compat
-        const anyParsed = parsed as unknown as { allPass?: boolean; verdict?: Submission["verdict"]; score?: number };
-        if (!anyParsed.verdict && typeof anyParsed.allPass === "boolean") {
-          (parsed as Submission).verdict = anyParsed.allPass ? "AC" : "WA";
-        }
-        if (typeof anyParsed.score !== "number") {
-          (parsed as Submission).score = parsed.verdict === "AC" ? 100 : 0;
-        }
-        items.push(parsed);
-      } catch {
-        // ignore bad lines
-      }
-    }
-    return dedupeSubmissions(items);
+    const data = parseAllSubmissionsFromRaw(raw);
+    allSubsCache = { data, at: now };
+    return data;
   } catch {
+    allSubsCache = null;
     return [];
   }
 }

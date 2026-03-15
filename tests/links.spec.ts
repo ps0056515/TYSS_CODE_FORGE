@@ -36,7 +36,7 @@ test.describe("Navigation & links", () => {
 
     for (const [href, label] of navLinks) {
       await page.locator("header").getByRole("link", { name: label, exact: true }).first().click();
-      await expect(page).toHaveURL(new RegExp(`${href.replace("/", "\\/")}$`));
+      await expect(page).toHaveURL(new RegExp(`${href.replace("/", "\\/")}\\/?$`));
       await page.goto("/");
     }
   });

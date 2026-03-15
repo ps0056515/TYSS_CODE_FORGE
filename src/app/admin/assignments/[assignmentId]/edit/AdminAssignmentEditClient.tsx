@@ -18,6 +18,8 @@ type Assignment = {
   title: string;
   description: string;
   dueAt: string;
+  startAt?: string;
+  endAt?: string;
   type?: "general" | "coding_set" | "project_usecase";
   codeforgeProblemId?: string;
   projectInstructions?: string;
@@ -156,6 +158,31 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
     });
   };
 
+  const toDatetimeLocal = (iso: string | undefined) => {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const h = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      return `${y}-${m}-${day}T${h}:${min}`;
+    } catch {
+      return "";
+    }
+  };
+  const fromDatetimeLocal = (local: string) => {
+    if (!local.trim()) return undefined;
+    try {
+      const d = new Date(local);
+      return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+    } catch {
+      return undefined;
+    }
+  };
+
   const save = () => {
     if (!assignment) return;
     setSaving(true);
@@ -163,6 +190,8 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
       type: assignment.type ?? "general",
       codeforgeProblemId: assignment.codeforgeProblemId ?? "",
       projectInstructions: assignment.projectInstructions,
+      startAt: assignment.startAt ?? "",
+      endAt: assignment.endAt ?? "",
       codingSet: assignment.type === "coding_set" ? assignment.codingSet : undefined,
     };
     fetch(`/api/assignments/${encodeURIComponent(assignmentId)}`, {
@@ -183,6 +212,39 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
 
   return (
     <div className="mt-8 grid gap-4">
+      <Card className="p-5">
+        <div className="text-sm font-semibold">Start & end time</div>
+        <div className="text-sm text-muted mt-1">When the assignment becomes available and when it closes. Leave empty for “available immediately” or “due at deadline”.</div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label>
+            <span className="block text-xs text-muted mb-1">Start time (optional)</span>
+            <input
+              type="datetime-local"
+              value={toDatetimeLocal(assignment.startAt)}
+              onChange={(e) => {
+                const v = fromDatetimeLocal(e.target.value);
+                setAssignment({ ...assignment, startAt: v });
+              }}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
+            />
+            <span className="block text-xs text-muted mt-1">Leave empty = available immediately</span>
+          </label>
+          <label>
+            <span className="block text-xs text-muted mb-1">End time (optional)</span>
+            <input
+              type="datetime-local"
+              value={toDatetimeLocal(assignment.endAt ?? assignment.dueAt)}
+              onChange={(e) => {
+                const v = fromDatetimeLocal(e.target.value);
+                setAssignment({ ...assignment, endAt: v });
+              }}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
+            />
+            <span className="block text-xs text-muted mt-1">Leave empty = use due date</span>
+          </label>
+        </div>
+      </Card>
+
       <Card className="p-5">
         <div className="text-sm font-semibold">Assignment type</div>
         <div className="text-sm text-muted mt-1">Choose how this assignment is graded and what students must do.</div>

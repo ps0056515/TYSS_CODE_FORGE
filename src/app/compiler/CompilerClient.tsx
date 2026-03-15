@@ -18,15 +18,17 @@ const LANGS: { id: Lang; label: string }[] = [
 function template(lang: Lang) {
   switch (lang) {
     case "python":
-      return `# Write your code here\n\nprint(\"Hello from Python\")\n`;
+      return `# Write your code here\n\nprint("Hello from Python")\n`;
     case "java":
-      return `// Write your code here\npublic class Main {\n  public static void main(String[] args) {\n    System.out.println(\"Hello from Java\");\n  }\n}\n`;
+      return `// Write your code here\npublic class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello from Java");\n  }\n}\n`;
     case "cpp":
-      return `// Write your code here\n#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n  cout << \"Hello from C++\" << \"\\n\";\n  return 0;\n}\n`;
+      return `// Write your code here\n#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n  cout << "Hello from C++" << "\\n";\n  return 0;\n}\n`;
     default:
-      return `// Write your code here\nconsole.log(\"Hello from JavaScript\");\n`;
+      return `// Write your code here\nconsole.log("Hello from JavaScript");\n`;
   }
 }
+
+const MONACO_LOAD_TIMEOUT_MS = 12_000;
 
 export function CompilerClient() {
   const [language, setLanguage] = React.useState<Lang>("cpp");
@@ -35,9 +37,17 @@ export function CompilerClient() {
   const [stdout, setStdout] = React.useState<string>("");
   const [stderr, setStderr] = React.useState<string>("");
   const [running, setRunning] = React.useState(false);
+  const [monacoReady, setMonacoReady] = React.useState(false);
+  const [monacoFailed, setMonacoFailed] = React.useState(false);
 
   const monacoLang =
     language === "cpp" ? "cpp" : language === "java" ? "java" : language === "python" ? "python" : "javascript";
+
+  React.useEffect(() => {
+    if (monacoReady) return;
+    const t = setTimeout(() => setMonacoFailed(true), MONACO_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [monacoReady]);
 
   async function run() {
     setRunning(true);
@@ -101,22 +111,38 @@ export function CompilerClient() {
             <Play className="h-3.5 w-3.5" /> {running ? "Running..." : "Run"}
           </Button>
         </div>
-        <Editor
-          height="460px"
-          defaultLanguage={monacoLang}
-          language={monacoLang}
-          value={code}
-          onChange={(v) => setCode(v ?? "")}
-          theme="vs-dark"
-          options={{
-            minimap: { enabled: false },
-            fontSize: 13,
-            fontFamily: "JetBrains Mono, Menlo, Monaco, Consolas, 'Courier New', monospace",
-            automaticLayout: true,
-            scrollBeyondLastLine: false,
-            wordWrap: "on",
-          }}
-        />
+        {monacoFailed ? (
+          <textarea
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            spellCheck={false}
+            className="w-full h-[460px] min-h-[200px] rounded-b border border-t-0 border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 resize-y focus:ring-2 focus:ring-brand/50 focus:ring-offset-0"
+            placeholder="Write your code here"
+          />
+        ) : (
+          <Editor
+            height="460px"
+            defaultLanguage={monacoLang}
+            language={monacoLang}
+            value={code}
+            onChange={(v) => setCode(v ?? "")}
+            onMount={() => setMonacoReady(true)}
+            loading={
+              <div className="h-[460px] flex items-center justify-center text-muted bg-[#1e1e1e]">
+                Loading editor…
+              </div>
+            }
+            theme="vs-dark"
+            options={{
+              minimap: { enabled: false },
+              fontSize: 13,
+              fontFamily: "JetBrains Mono, Menlo, Monaco, Consolas, 'Courier New', monospace",
+              automaticLayout: true,
+              scrollBeyondLastLine: false,
+              wordWrap: "on",
+            }}
+          />
+        )}
       </div>
 
       {/* Right: input + output — error box is scrollable and never obscured */}

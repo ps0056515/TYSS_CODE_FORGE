@@ -1,11 +1,12 @@
 import { Container, Card } from "@/components/ui";
-import { getUser, isAdminUser } from "@/lib/auth";
+import { getUserAsync, isAdminUser } from "@/lib/auth";
 import { getAssignment, getBatch, listEnrolments } from "@/lib/assignment-platform-store";
 import { listAllSubmissions } from "@/lib/submissions";
 import { isAtRiskRuleBased } from "@/lib/dashboard-metrics";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CopyInviteLink } from "./CopyInviteLink";
+import { UnenrollButton } from "./UnenrollButton";
 import {
   DashboardKpiCard,
   DashboardSection,
@@ -31,7 +32,7 @@ export default async function AssignmentDashboardPage({
 }: {
   params: Promise<{ assignmentId: string }>;
 }) {
-  const user = getUser();
+  const user = await getUserAsync();
   const isAdmin = isAdminUser(user);
   if (!user || !isAdmin) {
     return (
@@ -194,7 +195,7 @@ export default async function AssignmentDashboardPage({
                     )}
                     <th className="text-left p-4 font-medium text-text">Joined</th>
                     <th className="text-left p-4 font-medium text-text">Repo</th>
-                    <th className="w-10" />
+                    <th className="text-left p-4 font-medium text-text">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -246,13 +247,16 @@ export default async function AssignmentDashboardPage({
                           )}
                         </td>
                         <td className="p-4">
-                          <Link
-                            href={`/admin/students/${encodeURIComponent(e.userId)}`}
-                            className="inline-flex items-center gap-1 text-sm text-muted hover:text-brand transition"
-                          >
-                            View
-                            <ChevronRight className="h-4 w-4" />
-                          </Link>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link
+                              href={`/admin/students/${encodeURIComponent(e.userId)}`}
+                              className="inline-flex items-center gap-1 text-sm text-muted hover:text-brand transition"
+                            >
+                              View
+                              <ChevronRight className="h-4 w-4" />
+                            </Link>
+                            <UnenrollButton assignmentId={assignmentId} userId={e.userId} />
+                          </div>
                         </td>
                       </tr>
                     );

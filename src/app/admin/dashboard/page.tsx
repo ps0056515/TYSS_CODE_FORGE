@@ -1,5 +1,5 @@
 import { Container, Card } from "@/components/ui";
-import { getUser, isAdminUser } from "@/lib/auth";
+import { getUserAsync, isAdminUser } from "@/lib/auth";
 import Link from "next/link";
 import {
   listOrganizations,
@@ -27,8 +27,10 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
-  const user = getUser();
+  const user = await getUserAsync();
   const isAdmin = isAdminUser(user);
   if (!user || !isAdmin) {
     return (
@@ -97,6 +99,7 @@ export default async function AdminDashboardPage() {
 
   const orgById = new Map(orgs.map((o) => [o.id, o]));
   const buById = new Map(bus.map((b) => [b.id, b]));
+  const batchById = new Map(batches.map((b) => [b.id, b]));
 
   const needsAttention = assignments
     .filter((a) => a.type === "coding_set")
@@ -293,7 +296,10 @@ export default async function AdminDashboardPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="min-w-0">
                     <h3 className="font-semibold text-text truncate">{a.title}</h3>
-                    <p className="text-sm text-muted mt-0.5">Due {new Date(a.dueAt).toLocaleString()}</p>
+                    <p className="text-sm text-muted mt-0.5">
+                      {batchById.get(a.batchId)?.name && <span className="text-muted">{batchById.get(a.batchId)?.name} · </span>}
+                      Due {new Date(a.dueAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <Link

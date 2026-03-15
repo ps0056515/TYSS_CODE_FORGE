@@ -3,7 +3,8 @@ import { USER_COOKIE } from "@/lib/auth";
 
 /**
  * Clears the CodeForge user cookie and redirects to NextAuth signout so both sessions are cleared.
- * Uses the client-facing host (from headers) so sign-out works on EC2/proxy; req.url can be localhost internally.
+ * Uses NEXTAUTH_URL when set (so sign-out stays on the same app URL, e.g. localhost:3002);
+ * otherwise uses the client-facing host from headers for EC2/proxy.
  */
 function getOriginFromRequest(req: Request): string {
   const url = new URL(req.url);
@@ -15,7 +16,9 @@ function getOriginFromRequest(req: Request): string {
 }
 
 export async function GET(req: Request) {
-  const origin = getOriginFromRequest(req);
+  const fromRequest = getOriginFromRequest(req);
+  const envUrl = process.env.NEXTAUTH_URL;
+  const origin = envUrl ? envUrl.replace(/\/$/, "").split("?")[0] : fromRequest;
   const res = NextResponse.redirect(
     `${origin}/api/auth/signout?callbackUrl=${encodeURIComponent(origin)}`
   );

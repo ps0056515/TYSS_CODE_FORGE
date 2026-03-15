@@ -1,5 +1,5 @@
 import { Container } from "@/components/ui";
-import { getUser, isAdminUser } from "@/lib/auth";
+import { getUserAsync, isAdminUser } from "@/lib/auth";
 import { getBatch } from "@/lib/assignment-platform-store";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,7 +10,7 @@ export default async function AdminBatchDetailPage({
 }: {
   params: Promise<{ batchId: string }>;
 }) {
-  const user = getUser();
+  const user = await getUserAsync();
   const isAdmin = isAdminUser(user);
   if (!user || !isAdmin) {
     return (

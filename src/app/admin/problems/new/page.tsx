@@ -121,7 +121,7 @@ export default function AdminNewProblemPage() {
       }
       setCreatedSlug(data.item?.slug ?? null);
       router.refresh();
-      router.push("/practice");
+      router.push("/admin/problems?created=" + encodeURIComponent(data.item?.slug ?? ""));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create problem.");
     } finally {
@@ -277,7 +277,7 @@ export default function AdminNewProblemPage() {
                     className={cn(
                       "text-xs rounded-lg border px-2.5 py-1.5 transition",
                       tags.includes(algo.id)
-                        ? "bg-brand/20 text-text border-brand/40"
+                        ? "bg-brand/25 text-text border-brand ring-2 ring-brand/50 ring-offset-1 ring-offset-bg"
                         : "bg-white/5 text-muted border-border hover:bg-white/10 hover:text-text"
                     )}
                   >
@@ -299,7 +299,7 @@ export default function AdminNewProblemPage() {
                       className={cn(
                         "text-xs rounded-lg border px-2.5 py-1.5 transition",
                         tags.includes(co.id)
-                          ? "bg-amber-500/20 text-amber-200 border-amber-500/40"
+                          ? "bg-amber-500/25 text-amber-200 border-amber-500/50 ring-2 ring-amber-500/50 ring-offset-1 ring-offset-bg"
                           : "bg-white/5 text-muted border-border hover:bg-white/10 hover:text-text"
                       )}
                     >
@@ -342,7 +342,7 @@ export default function AdminNewProblemPage() {
                   className={cn(
                     "text-sm rounded-xl border px-3 py-2 transition",
                     active
-                      ? "bg-brand/20 text-text border-brand/40"
+                      ? "bg-brand/25 text-text border-brand ring-2 ring-brand/50 ring-offset-2 ring-offset-bg"
                       : "bg-white/5 text-muted border-border hover:bg-white/10 hover:text-text"
                   )}
                 >

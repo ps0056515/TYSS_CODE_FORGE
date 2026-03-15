@@ -1,5 +1,5 @@
 import { Container, Card } from "@/components/ui";
-import { getUser, isAdminUser } from "@/lib/auth";
+import { getUserAsync, isAdminUser } from "@/lib/auth";
 import { listAllAssignments, listEnrolmentsByUser, getBatch } from "@/lib/assignment-platform-store";
 import { loadAllSubmissionsCached, computeCodingProgressForUser, isAtRiskRuleBased } from "@/lib/dashboard-metrics";
 import Link from "next/link";
@@ -14,7 +14,7 @@ export default async function AdminStudentProfilePage({
 }: {
   params: Promise<{ userId: string }>;
 }) {
-  const user = getUser();
+  const user = await getUserAsync();
   const isAdmin = isAdminUser(user);
   if (!user || !isAdmin) {
     return (

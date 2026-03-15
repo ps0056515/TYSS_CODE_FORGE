@@ -5,8 +5,9 @@ import {
   joinAssignment,
   listEnrolmentsByUser,
   getAssignment,
+  removeEnrolment,
 } from "@/lib/assignment-platform-store";
-import { getUserAsync, USER_COOKIE } from "@/lib/auth";
+import { getUserAsync, isAdminUser, USER_COOKIE } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,24 @@ export async function POST(req: Request) {
     const res = NextResponse.json({ ok: true, item: enrolment });
     res.cookies.set(USER_COOKIE, user, { path: "/", sameSite: "lax", maxAge: 30 * 24 * 60 * 60 });
     return res;
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
+  }
+}
+
+const UnenrollSchema = z.object({ assignmentId: z.string().min(1), userId: z.string().min(1) });
+
+export async function DELETE(req: Request) {
+  const user = await getUserAsync();
+  if (!user) return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
+  if (!isAdminUser(user)) return NextResponse.json({ ok: false, error: "Admins only" }, { status: 403 });
+  try {
+    const json = await req.json();
+    const parsed = UnenrollSchema.safeParse(json);
+    if (!parsed.success) return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
+    const removed = await removeEnrolment(parsed.data.assignmentId, parsed.data.userId);
+    if (!removed) return NextResponse.json({ ok: false, error: "Enrolment not found" }, { status: 404 });
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }

@@ -10,42 +10,95 @@ type Item = {
   enrolment: { joinedAt: string; repoUrl?: string };
 };
 
-export function AssignmentsListClient({ signedIn }: { signedIn: boolean }) {
+const FETCH_TIMEOUT_MS = 12_000;
+const HARD_STOP_MS = 10_000; // Always stop loading after this, no matter what
+
+export function AssignmentsListClient({ signedIn: _signedIn }: { signedIn: boolean }) {
   const [items, setItems] = React.useState<Item[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [needsSignIn, setNeedsSignIn] = React.useState(false);
 
   React.useEffect(() => {
-    if (!signedIn) {
-      setLoading(false);
-      setError(null);
-      return;
-    }
+    let cancelled = false;
+    setLoading(true);
     setError(null);
-    fetch("/api/assignments/my")
-      .then((r) => {
+    setNeedsSignIn(false);
+
+    const stopLoading = () => {
+      if (!cancelled) {
+        setLoading(false);
+        cancelled = true;
+      }
+    };
+
+    const hardStopId = setTimeout(() => {
+      if (!cancelled) {
+        setError("network");
+        setItems([]);
+        setLoading(false);
+        cancelled = true;
+      }
+    }, HARD_STOP_MS);
+
+    const controller = new AbortController();
+    const abortId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    fetch("/api/assignments/my", { credentials: "include", signal: controller.signal })
+      .then(async (r) => {
+        if (cancelled) return { ok: false, items: [] };
         if (r.status === 401) {
+          setNeedsSignIn(true);
           setItems([]);
-          setError("session");
-          return { ok: false };
+          return { ok: false, items: [] };
         }
-        return r.json();
+        if (!r.ok) {
+          setError("network");
+          return { ok: false, items: [] };
+        }
+        const text = await r.text();
+        try {
+          return JSON.parse(text) as { ok?: boolean; items?: unknown[] };
+        } catch {
+          setError("network");
+          return { ok: false, items: [] };
+        }
       })
       .then((d) => {
+        if (cancelled) return;
         if (d && d.ok && Array.isArray(d.items)) {
-          setItems(d.items);
+          const valid = d.items.filter((x): x is Item => {
+            if (x == null || typeof x !== "object") return false;
+            const o = x as Record<string, unknown>;
+            return o.assignment != null && typeof o.assignment === "object";
+          });
+          setItems(valid);
+          setError(null);
         } else {
           setItems([]);
         }
       })
       .catch(() => {
-        setItems([]);
-        setError("network");
+        if (!cancelled) {
+          setItems([]);
+          setError("network");
+        }
       })
-      .finally(() => setLoading(false));
-  }, [signedIn]);
+      .finally(() => {
+        clearTimeout(abortId);
+        clearTimeout(hardStopId);
+        stopLoading();
+      });
 
-  if (!signedIn) {
+    return () => {
+      cancelled = true;
+      clearTimeout(abortId);
+      clearTimeout(hardStopId);
+      controller.abort();
+    };
+  }, []);
+
+  if (needsSignIn) {
     return (
       <Card className="p-6 mt-6 max-w-md">
         <p className="text-sm text-muted mb-4">Sign in to see your assignments.</p>
@@ -55,15 +108,6 @@ export function AssignmentsListClient({ signedIn }: { signedIn: boolean }) {
   }
 
   if (loading) return <p className="text-sm text-muted mt-6">Loading…</p>;
-
-  if (error === "session") {
-    return (
-      <Card className="p-6 mt-6 max-w-md">
-        <p className="text-sm text-muted mb-4">Your session may have expired. Please sign in again to see your assignments.</p>
-        <Link href="/login" className="text-sm font-medium text-brand hover:underline">Sign in again →</Link>
-      </Card>
-    );
-  }
 
   if (error === "network") {
     return (

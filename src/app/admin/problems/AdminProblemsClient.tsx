@@ -2,14 +2,18 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Container, Card, Button } from "@/components/ui";
 import type { Problem } from "@/lib/data";
 
 export function AdminProblemsClient() {
+  const searchParams = useSearchParams();
   const [items, setItems] = React.useState<Problem[]>([]);
   const [customSlugs, setCustomSlugs] = React.useState<Set<string>>(new Set());
   const [loading, setLoading] = React.useState(true);
   const [deleting, setDeleting] = React.useState<string | null>(null);
+  const [search, setSearch] = React.useState("");
+  const createdSlug = searchParams.get("created");
 
   const fetchProblems = React.useCallback(async () => {
     setLoading(true);
@@ -28,6 +32,17 @@ export function AdminProblemsClient() {
   React.useEffect(() => {
     fetchProblems();
   }, [fetchProblems]);
+
+  const filteredItems = React.useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.trim().toLowerCase();
+    return items.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.slug ?? "").toLowerCase().includes(q) ||
+        (p.tags ?? []).some((t) => t.toLowerCase().includes(q))
+    );
+  }, [items, search]);
 
   async function handleDelete(slug: string) {
     if (!confirm(`Delete problem "${slug}"? This cannot be undone.`)) return;
@@ -67,13 +82,27 @@ export function AdminProblemsClient() {
             + Bulk add problems (by topic)
           </Link>
         </div>
+        {createdSlug && (
+          <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">
+            Problem &quot;{createdSlug}&quot; created. <Link href="/admin/problems/new" className="underline">Add another</Link> or edit below.
+          </p>
+        )}
+        <div className="mt-4">
+          <input
+            type="search"
+            placeholder="Search by title, slug, or tag…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full max-w-md h-10 rounded-lg border border-border bg-bg px-3 text-sm text-text placeholder:text-muted focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
+          />
+        </div>
       </div>
 
       {loading ? (
         <p className="mt-8 text-sm text-muted">Loading…</p>
       ) : (
         <div className="mt-8 grid gap-3">
-          {items.map((p) => {
+          {filteredItems.map((p) => {
             const isCustom = customSlugs.has(p.slug);
             return (
               <Card key={p.slug} className="p-5">
@@ -115,6 +144,11 @@ export function AdminProblemsClient() {
               </Card>
             );
           })}
+          {!loading && filteredItems.length === 0 && (
+            <p className="text-sm text-muted">
+              {items.length === 0 ? "No problems yet." : `No problems match "${search}".`}
+            </p>
+          )}
         </div>
       )}
     </Container>
