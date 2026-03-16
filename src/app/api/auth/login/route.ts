@@ -12,6 +12,18 @@ const Schema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, underscore")
 });
 
+/** Public origin for redirects (EC2/proxy-safe). Prefer NEXTAUTH_URL; else x-forwarded-host/host. */
+function getPublicOrigin(req: Request): string {
+  const envUrl = process.env.NEXTAUTH_URL;
+  if (envUrl) return envUrl.replace(/\/$/, "").split("?")[0];
+  const url = new URL(req.url);
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const host = forwardedHost ?? req.headers.get("host") ?? url.host;
+  const proto = forwardedProto ?? (url.protocol === "https:" ? "https" : "http");
+  return `${proto}://${host}`;
+}
+
 function getFormData(req: Request): Promise<{ username: string | null; callbackUrl: string | null }> {
   const contentType = req.headers.get("content-type") ?? "";
   if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -29,7 +41,7 @@ function getFormData(req: Request): Promise<{ username: string | null; callbackU
 export async function POST(req: Request) {
   const contentType = req.headers.get("content-type") ?? "";
   const isForm = contentType.includes("application/x-www-form-urlencoded");
-  const base = new URL(req.url).origin;
+  const base = getPublicOrigin(req);
 
   try {
     const { username: raw, callbackUrl } = await getFormData(req);
@@ -51,7 +63,7 @@ export async function POST(req: Request) {
 
     if (isForm) {
       const dest = callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/practice";
-      const redirectUrl = new URL(dest, req.url);
+      const redirectUrl = `${base}${dest.startsWith("/") ? dest : `/${dest}`}`;
       const res = NextResponse.redirect(redirectUrl);
       res.cookies.set(USER_COOKIE, parsed.data.username, cookieOptions);
       return res;
