@@ -17,6 +17,7 @@ const CreateSchema = z.object({
   batchId: z.string().min(1),
   title: z.string().min(1).max(200),
   description: z.string().default(""),
+  kind: z.enum(["assignment", "assessment"]).optional(),
   dueAt: z.string().min(1),
   type: z.enum(["general", "coding_set", "project_usecase"]).optional(),
   templateRepoUrl: z.string().url().optional().or(z.literal("")),

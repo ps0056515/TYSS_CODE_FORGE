@@ -226,6 +226,7 @@ export async function createAssignment(input: {
   title: string;
   description: string;
   dueAt: string;
+  kind?: Assignment["kind"];
   type?: Assignment["type"];
   templateRepoUrl?: string;
   codeforgeProblemId?: string;
@@ -239,6 +240,7 @@ export async function createAssignment(input: {
     title: input.title.trim(),
     slug,
     description: input.description.trim(),
+    kind: input.kind ?? "assignment",
     dueAt: input.dueAt,
     type: input.type ?? "general",
     templateRepoUrl: input.templateRepoUrl?.trim() || undefined,
@@ -263,7 +265,7 @@ export async function getAssignmentBySlug(slug: string): Promise<Assignment | nu
 
 export async function updateAssignment(
   id: string,
-  patch: Partial<Pick<Assignment, "title" | "description" | "dueAt" | "startAt" | "endAt" | "type" | "codingSet" | "codeforgeProblemId" | "templateRepoUrl" | "projectInstructions">>
+  patch: Partial<Pick<Assignment, "title" | "description" | "kind" | "dueAt" | "startAt" | "endAt" | "type" | "codingSet" | "codeforgeProblemId" | "templateRepoUrl" | "projectInstructions">>
 ): Promise<Assignment | null> {
   const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
   const idx = list.findIndex((a) => a.id === id);
@@ -274,6 +276,7 @@ export async function updateAssignment(
     ...patch,
     title: (patch.title ?? curr.title).trim(),
     description: (patch.description ?? curr.description).trim(),
+    kind: patch.kind ?? curr.kind ?? "assignment",
     templateRepoUrl: (patch.templateRepoUrl ?? curr.templateRepoUrl)?.trim() || undefined,
     startAt: patch.startAt !== undefined ? (patch.startAt || undefined) : curr.startAt,
     endAt: patch.endAt !== undefined ? (patch.endAt || undefined) : curr.endAt,
@@ -299,15 +302,23 @@ export async function getEnrolment(assignmentId: string, userId: string): Promis
   return list.find((e) => e.assignmentId === assignmentId && e.userId === userId) ?? null;
 }
 
-export async function joinAssignment(assignmentId: string, userId: string): Promise<Enrolment> {
+export async function joinAssignment(assignmentId: string, userId: string, repoUrl?: string): Promise<Enrolment> {
   invalidateEnrolmentsCache();
   const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
   const existing = list.find((e) => e.assignmentId === assignmentId && e.userId === userId);
-  if (existing) return existing;
+  if (existing) {
+    if (repoUrl && repoUrl.trim()) {
+      existing.repoUrl = repoUrl.trim();
+      await writeJson(ENROLMENTS_FILE, list);
+      invalidateEnrolmentsCache();
+    }
+    return existing;
+  }
   const enrolment: Enrolment = {
     id: newId(),
     assignmentId,
     userId,
+    repoUrl: repoUrl?.trim() || undefined,
     joinedAt: new Date().toISOString(),
   };
   list.push(enrolment);

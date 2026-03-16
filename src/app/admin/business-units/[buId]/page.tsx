@@ -38,6 +38,9 @@ export default async function AdminBUDetailPage({
       <p className="text-sm text-muted mt-1">
         Step 3 of 3. Create batches under this BU. Each batch can have assignments and daily handouts.
       </p>
+      <p className="text-sm text-muted mt-2">
+        Tip: Set a clear <span className="text-text">Skill</span> per batch (e.g. Java, Spring, React) so learners only see the relevant assignments/assessments/handouts for that technology.
+      </p>
       <AdminBatchesClient businessUnitId={buId} businessUnitName={bu.name} />
     </Container>
   );

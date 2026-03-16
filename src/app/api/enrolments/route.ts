@@ -26,7 +26,10 @@ export async function GET(req: Request) {
   return NextResponse.json({ ok: false, error: "assignmentId or userId required" }, { status: 400 });
 }
 
-const JoinSchema = z.object({ assignmentId: z.string().min(1) });
+const JoinSchema = z.object({
+  assignmentId: z.string().min(1),
+  repoUrl: z.string().url().optional().or(z.literal("")).optional(),
+});
 
 export async function POST(req: Request) {
   const user = await getUserAsync();
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
     if (!parsed.success) return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
     const assignment = await getAssignment(parsed.data.assignmentId);
     if (!assignment) return NextResponse.json({ ok: false, error: "Assignment not found" }, { status: 404 });
-    const enrolment = await joinAssignment(parsed.data.assignmentId, user);
+    const enrolment = await joinAssignment(parsed.data.assignmentId, user, parsed.data.repoUrl || undefined);
     const res = NextResponse.json({ ok: true, item: enrolment });
     res.cookies.set(USER_COOKIE, user, { path: "/", sameSite: "lax", maxAge: 30 * 24 * 60 * 60 });
     return res;

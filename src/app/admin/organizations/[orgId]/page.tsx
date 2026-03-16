@@ -36,6 +36,9 @@ export default async function AdminOrgDetailPage({
       <p className="text-sm text-muted mt-1">
         Step 2 of 3. Add business units (BU) under this organization, then create batches inside each BU.
       </p>
+      <p className="text-sm text-muted mt-2">
+        Hierarchy: <span className="text-text">Organization → Batch → Skill</span>. Skills (e.g. Java, Spring, React) live on batches and scope assignments/assessments/handouts.
+      </p>
       <AdminBusinessUnitsClient organizationId={orgId} organizationName={org.name} />
     </Container>
   );

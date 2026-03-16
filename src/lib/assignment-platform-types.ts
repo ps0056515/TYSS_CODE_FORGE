@@ -53,6 +53,8 @@ export type Assignment = {
   title: string;
   slug: string;
   description: string;
+  /** Whether this is an assignment or an assessment (shown under different tabs). Default: assignment */
+  kind?: "assignment" | "assessment";
   dueAt: string; // ISO datetime
   /** Optional: when the assignment becomes available (default: immediately) */
   startAt?: string; // ISO datetime

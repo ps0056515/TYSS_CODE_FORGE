@@ -19,6 +19,13 @@ const LANGS: { id: Lang; label: string }[] = [
   { id: "cpp", label: "C++" },
 ];
 
+const PROJECT_TAG_PRESETS: Record<Lang, string[]> = {
+  javascript: ["javascript", "frontend", "node", "async"],
+  python: ["python", "scripts", "automation"],
+  java: ["java", "oop", "collections", "spring"],
+  cpp: ["cpp", "stl", "performance"],
+};
+
 type ProblemType = "algorithm" | "project";
 
 function slugify(s: string): string {
@@ -46,6 +53,7 @@ export default function AdminNewProblemPage() {
   const [examples, setExamples] = React.useState<ExampleRow[]>([
     { input: "", output: "", explanation: "" },
   ]);
+  const [hiddenTestsText, setHiddenTestsText] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [createdSlug, setCreatedSlug] = React.useState<string | null>(null);
@@ -74,6 +82,14 @@ export default function AdminNewProblemPage() {
     );
   };
 
+  const applyProjectTagsForLanguage = () => {
+    if (!languages.length) return;
+    const primary = languages[0];
+    const presets = PROJECT_TAG_PRESETS[primary];
+    if (!presets) return;
+    setTags((prev) => Array.from(new Set([...prev, ...presets])));
+  };
+
   const addExample = () => {
     setExamples((prev) => [...prev, { input: "", output: "", explanation: "" }]);
   };
@@ -90,6 +106,29 @@ export default function AdminNewProblemPage() {
     setError(null);
     setSaving(true);
     try {
+      let hiddenTests: { input: string; output: string }[] | undefined;
+      if (hiddenTestsText.trim()) {
+        try {
+          const parsed = JSON.parse(hiddenTestsText) as Array<{ input?: string; output?: string }>;
+          if (!Array.isArray(parsed)) throw new Error("Hidden tests must be a JSON array.");
+          hiddenTests = parsed
+            .map((t) => ({
+              input: (t.input ?? "").trim(),
+              output: (t.output ?? "").trim(),
+            }))
+            .filter((t) => t.input || t.output);
+          if (!hiddenTests.length) hiddenTests = undefined;
+        } catch (e) {
+          setError(
+            e instanceof Error
+              ? `Hidden tests JSON is invalid: ${e.message}`
+              : "Hidden tests JSON is invalid."
+          );
+          setSaving(false);
+          return;
+        }
+      }
+
       const payload = {
         title: title.trim(),
         slug: effectiveSlug || undefined,
@@ -98,6 +137,7 @@ export default function AdminNewProblemPage() {
         languages,
         statement: statement.trim() || undefined,
         type: problemType,
+        hiddenTests,
         examples:
           problemType === "algorithm" && examples.some((e) => e.input || e.output)
             ? examples
@@ -352,6 +392,15 @@ export default function AdminNewProblemPage() {
             })}
           </div>
           <p className="text-xs text-muted mt-2">At least one language is required.</p>
+          {problemType === "project" && (
+            <button
+              type="button"
+              onClick={applyProjectTagsForLanguage}
+              className="mt-3 inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted hover:text-text hover:border-brand/40 hover:bg-brand/5 transition"
+            >
+              Apply project tags for selected language
+            </button>
+          )}
         </Card>
 
         {/* Statement */}
@@ -432,6 +481,29 @@ export default function AdminNewProblemPage() {
             </div>
           </Card>
         )}
+
+        {/* Hidden tests */}
+        <Card className="p-6">
+          <h2 className="text-sm font-semibold text-text border-b border-border pb-2 mb-4">
+            Hidden tests (used for grading)
+          </h2>
+          <p className="text-xs text-muted mb-3">
+            Hidden tests are <strong>not shown</strong> to students. They run on submit to determine the final verdict and score.
+            Use JSON array format:
+          </p>
+          <pre className="text-[11px] font-mono bg-card/60 border border-border rounded-lg p-3 text-muted mb-3 whitespace-pre-wrap">
+{`[
+  { "input": "2 3", "output": "5" },
+  { "input": "10 20", "output": "30" }
+]`}
+          </pre>
+          <textarea
+            value={hiddenTestsText}
+            onChange={(e) => setHiddenTestsText(e.target.value)}
+            className="min-h-[140px] w-full rounded-xl bg-bg border border-border px-4 py-3 text-xs font-mono text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg resize-y"
+            placeholder='Optional. Paste JSON array of hidden tests, e.g. [{ "input": "2 3", "output": "5" }]. Leave empty to rely on subtask scoring.'
+          />
+        </Card>
 
         {/* Error & actions */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">

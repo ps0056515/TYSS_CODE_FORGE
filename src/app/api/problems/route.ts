@@ -11,6 +11,11 @@ const ExampleSchema = z.object({
   explanation: z.string().optional()
 });
 
+const HiddenTestSchema = z.object({
+  input: z.string(),
+  output: z.string(),
+});
+
 const ProblemSchema = z.object({
   title: z.string().min(2).max(120),
   slug: z.string().min(1).max(80).optional(),
@@ -19,7 +24,8 @@ const ProblemSchema = z.object({
   languages: z.array(z.enum(["javascript", "python", "java", "cpp"])).min(1),
   statement: z.string().optional(),
   type: z.enum(["algorithm", "project"]).optional(),
-  examples: z.array(ExampleSchema).optional()
+  examples: z.array(ExampleSchema).optional(),
+  hiddenTests: z.array(HiddenTestSchema).optional(),
 });
 
 export async function GET() {

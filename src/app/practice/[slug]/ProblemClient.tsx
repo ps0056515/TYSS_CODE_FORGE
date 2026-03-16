@@ -61,7 +61,7 @@ function InputShell({ value, onChange }: { value: string; onChange: (v: string) 
     <textarea
       value={value}
       spellCheck={false}
-      className="w-full h-full min-h-[80px] rounded border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 placeholder:text-white/40 outline-none focus:ring-2 focus:ring-brand/50 resize-y"
+      className="w-full h-full min-h-[80px] rounded border border-border bg-card text-text p-3 font-mono text-sm placeholder:text-muted outline-none focus:ring-2 focus:ring-brand/50 resize-y dark:bg-[#1e1e1e] dark:text-white/90 dark:placeholder:text-white/40"
       onChange={(e) => onChange(e.target.value)}
       placeholder="Custom input (stdin)"
       name="stdin"
@@ -518,7 +518,7 @@ export function ProblemClient({
                 )}
               </div>
             ) : output ? (
-              <pre className="rounded border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 whitespace-pre-wrap">
+              <pre className="rounded border border-border bg-card p-3 font-mono text-sm text-text whitespace-pre-wrap dark:bg-[#1e1e1e] dark:text-white/90">
                 {output}
               </pre>
             ) : (
@@ -541,7 +541,7 @@ export function ProblemClient({
             </div>
             <div className="p-3 flex flex-col min-h-[100px] min-w-0">
               <div className="text-xs font-medium text-muted uppercase mb-2 shrink-0">Output</div>
-              <pre className="flex-1 min-h-[60px] min-w-0 rounded border border-border bg-[#1e1e1e] p-3 font-mono text-sm text-white/90 whitespace-pre-wrap overflow-auto">
+              <pre className="flex-1 min-h-[60px] min-w-0 rounded border border-border bg-card p-3 font-mono text-sm text-text whitespace-pre-wrap overflow-auto dark:bg-[#1e1e1e] dark:text-white/90">
                 {output || "Run your code to see output."}
               </pre>
             </div>
@@ -700,7 +700,7 @@ export function ProblemClient({
             </div>
             <div className="flex-1 overflow-auto p-4 min-h-0">
               {viewCodeSubmission.code !== undefined && viewCodeSubmission.code !== "" ? (
-                <pre className="text-xs font-mono text-text whitespace-pre-wrap break-words bg-[#1e1e1e] rounded-lg p-4 overflow-auto">
+                <pre className="text-xs font-mono text-text whitespace-pre-wrap break-words bg-card rounded-lg p-4 overflow-auto dark:bg-[#1e1e1e] dark:text-white/90">
                   {viewCodeSubmission.code}
                 </pre>
               ) : (

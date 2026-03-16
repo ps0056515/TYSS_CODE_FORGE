@@ -17,6 +17,7 @@ type Assignment = {
   id: string;
   title: string;
   description: string;
+  kind?: "assignment" | "assessment";
   dueAt: string;
   startAt?: string;
   endAt?: string;
@@ -187,6 +188,7 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
     if (!assignment) return;
     setSaving(true);
     const payload: Partial<Assignment> = {
+      kind: assignment.kind ?? "assignment",
       type: assignment.type ?? "general",
       codeforgeProblemId: assignment.codeforgeProblemId ?? "",
       projectInstructions: assignment.projectInstructions,
@@ -212,6 +214,24 @@ export function AdminAssignmentEditClient({ assignmentId }: { assignmentId: stri
 
   return (
     <div className="mt-8 grid gap-4">
+      <Card className="p-5">
+        <div className="text-sm font-semibold">Assignment vs assessment</div>
+        <div className="text-sm text-muted mt-1">Controls which learner tab this appears under.</div>
+        <div className="mt-3 max-w-sm">
+          <label>
+            <span className="block text-xs text-muted mb-1">Category</span>
+            <select
+              value={assignment.kind ?? "assignment"}
+              onChange={(e) => setAssignment({ ...assignment, kind: e.target.value as Assignment["kind"] })}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
+            >
+              <option value="assignment">Assignment</option>
+              <option value="assessment">Assessment</option>
+            </select>
+          </label>
+        </div>
+      </Card>
+
       <Card className="p-5">
         <div className="text-sm font-semibold">Start & end time</div>
         <div className="text-sm text-muted mt-1">When the assignment becomes available and when it closes. Leave empty for “available immediately” or “due at deadline”.</div>

@@ -21,6 +21,7 @@ const LANGS: { id: Lang; label: string }[] = [
 ];
 
 type ExampleRow = { input: string; output: string; explanation: string };
+type HiddenTestRow = { input: string; output: string };
 
 export function AdminProblemEditClient({
   slug,
@@ -43,6 +44,10 @@ export function AdminProblemEditClient({
       explanation: e.explanation ?? "",
     })) : [{ input: "", output: "", explanation: "" }]) as ExampleRow[]
   );
+  const [hiddenTestsText, setHiddenTestsText] = React.useState<string>(() => {
+    const ht = initialProblem.hiddenTests ?? [];
+    return ht.length ? JSON.stringify(ht, null, 2) : "";
+  });
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
@@ -65,6 +70,29 @@ export function AdminProblemEditClient({
     setError(null);
     setSaving(true);
     try {
+      let hiddenTests: HiddenTestRow[] | undefined;
+      if (hiddenTestsText.trim()) {
+        try {
+          const parsed = JSON.parse(hiddenTestsText) as Array<{ input?: string; output?: string }>;
+          if (!Array.isArray(parsed)) throw new Error("Hidden tests must be a JSON array.");
+          hiddenTests = parsed
+            .map((t) => ({
+              input: (t.input ?? "").trim(),
+              output: (t.output ?? "").trim(),
+            }))
+            .filter((t) => t.input || t.output);
+          if (!hiddenTests.length) hiddenTests = undefined;
+        } catch (e) {
+          setError(
+            e instanceof Error
+              ? `Hidden tests JSON is invalid: ${e.message}`
+              : "Hidden tests JSON is invalid."
+          );
+          setSaving(false);
+          return;
+        }
+      }
+
       const payload = {
         title: title.trim(),
         difficulty,
@@ -76,6 +104,7 @@ export function AdminProblemEditClient({
           output: e.output.trim(),
           ...(e.explanation.trim() ? { explanation: e.explanation.trim() } : {}),
         })),
+        hiddenTests,
       };
       const res = await fetch(`/api/problems/${encodeURIComponent(slug)}`, {
         method: "PATCH",
@@ -219,6 +248,26 @@ export function AdminProblemEditClient({
             ))}
             <Button type="button" variant="ghost" onClick={addExample}>+ Add example</Button>
           </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-sm font-semibold text-text border-b border-border pb-2 mb-4">Hidden tests (used for grading)</h2>
+          <p className="text-xs text-muted mb-3">
+            Hidden tests are <strong>not shown</strong> to students. They run on submit to determine the final verdict and score.
+            Use JSON array format:
+          </p>
+          <pre className="text-[11px] font-mono bg-card/60 border border-border rounded-lg p-3 text-muted mb-3 whitespace-pre-wrap">
+{`[
+  { "input": "2 3", "output": "5" },
+  { "input": "10 20", "output": "30" }
+]`}
+          </pre>
+          <textarea
+            value={hiddenTestsText}
+            onChange={(e) => setHiddenTestsText(e.target.value)}
+            className="min-h-[140px] w-full rounded-xl bg-bg border border-border px-4 py-3 text-xs font-mono text-text placeholder:text-muted outline-none focus:ring-2 focus:ring-brand/50 resize-y"
+            placeholder='Optional. Paste JSON array of hidden tests, e.g. [{ "input": "2 3", "output": "5" }].'
+          />
         </Card>
 
         <div className="flex flex-wrap items-center gap-4">

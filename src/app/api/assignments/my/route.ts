@@ -18,8 +18,14 @@ export async function GET(req: Request) {
     let user = userFromRequestCookie(req);
     if (!user) user = await getUserAsync();
     if (!user) return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
+    const { searchParams } = new URL(req.url);
+    const kindParam = searchParams.get("kind");
+    const kind =
+      kindParam === "assessment" ? "assessment" : kindParam === "assignment" ? "assignment" : null;
+
     const items = await listMyAssignments(user);
-    const res = NextResponse.json({ ok: true, items });
+    const filtered = kind ? items.filter((x) => (x.assignment.kind ?? "assignment") === kind) : items;
+    const res = NextResponse.json({ ok: true, items: filtered });
     res.cookies.set(USER_COOKIE, user, { path: "/", sameSite: "lax", maxAge: 30 * 24 * 60 * 60 });
     return res;
   } catch (e) {

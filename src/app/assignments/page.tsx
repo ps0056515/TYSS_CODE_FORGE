@@ -16,7 +16,7 @@ export default async function AssignmentsPage() {
       <p className="text-sm text-muted mt-1 max-w-xl">
         View and open assignments you’ve joined. To join a new one, use the invitation link from your instructor and click <strong>Join</strong>.
       </p>
-      <AssignmentsListClient signedIn={!!user} />
+      <AssignmentsListClient signedIn={!!user} kind="assignment" />
     </Container>
   );
 }

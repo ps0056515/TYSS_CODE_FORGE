@@ -3,6 +3,8 @@ import { problems } from "@/lib/data";
 import { verdictLabel, verdictColorClass } from "@/lib/verdicts";
 import { getUserAsync } from "@/lib/auth";
 import { getProgressForUser, listAllSubmissions } from "@/lib/submissions";
+import { listMyAssignments } from "@/lib/assignment-platform-store";
+import { computeCodingProgressForUser } from "@/lib/dashboard-metrics";
 
 type SubRow = {
   id: string;
@@ -37,6 +39,35 @@ export default async function ProfilePage() {
       allPass: undefined,
       problemSlug: s.problemSlug,
     }));
+
+  const skillStats = user
+    ? (() => {
+        const map = new Map<string, { total: number; completed: number; sumPct: number; countPct: number }>();
+        return listMyAssignments(user).then((assignments) => {
+          for (const { assignment, batch } of assignments) {
+            if (assignment.type !== "coding_set") continue;
+            const prog = computeCodingProgressForUser(user, assignment, allSubs);
+            if (!prog || prog.total <= 0) continue;
+            const pct = prog.solved / prog.total;
+            const skill = batch?.skill?.trim() || "Other";
+            const entry = map.get(skill) ?? { total: 0, completed: 0, sumPct: 0, countPct: 0 };
+            entry.total += 1;
+            entry.sumPct += pct;
+            entry.countPct += 1;
+            if (pct >= 1) entry.completed += 1;
+            map.set(skill, entry);
+          }
+          return Array.from(map.entries()).map(([skill, s]) => ({
+            skill,
+            total: s.total,
+            completed: s.completed,
+            avgPct: s.countPct ? s.sumPct / s.countPct : 0,
+          }));
+        });
+      })()
+    : Promise.resolve([] as { skill: string; total: number; completed: number; avgPct: number }[]);
+
+  const resolvedSkillStats = await skillStats;
 
   return (
     <Container className="py-10">
@@ -88,6 +119,22 @@ export default async function ProfilePage() {
               )}
             </div>
           </Card>
+
+          {resolvedSkillStats.length > 0 && (
+            <Card className="p-6 lg:col-span-3">
+              <div className="text-sm font-semibold mb-3">Skill-wise progress</div>
+              <div className="space-y-3">
+                {resolvedSkillStats.map((s) => (
+                  <div key={s.skill} className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-text">{s.skill}</span>
+                    <span className="text-xs text-muted">
+                      {Math.round(s.avgPct * 100)}% · {s.completed}/{s.total} assignments completed
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           <Card className="p-6 lg:col-span-3">
             <div className="text-sm font-semibold">Recent submissions</div>

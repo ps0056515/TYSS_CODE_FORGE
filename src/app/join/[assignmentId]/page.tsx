@@ -16,9 +16,11 @@ export default async function JoinAssignmentPage({
   const batch = await getBatch(assignment.batchId);
   const user = await getUserAsync();
   let alreadyEnrolled = false;
+  let existingRepoUrl: string | null = null;
   if (user) {
     const enrolment = await getEnrolment(assignmentId, user);
     alreadyEnrolled = !!enrolment;
+    existingRepoUrl = enrolment?.repoUrl ?? null;
   }
 
   return (
@@ -41,6 +43,8 @@ export default async function JoinAssignmentPage({
           assignmentId={assignmentId}
           alreadyEnrolled={alreadyEnrolled}
           signedIn={!!user}
+          collectRepoUrl={assignment.type === "project_usecase"}
+          existingRepoUrl={existingRepoUrl}
         />
       </div>
     </Container>

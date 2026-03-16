@@ -31,6 +31,9 @@ export default async function AdminOrganizationsPage() {
       <p className="text-sm text-muted mt-1">
         Step 1 of 3. Create an organization (e.g. a college or company), then add business units and batches.
       </p>
+      <p className="text-sm text-muted mt-2">
+        Final learning view is scoped by: <span className="text-text">Organization → Batch → Skill</span> (skill examples: Java, Spring, React).
+      </p>
 
       <div className="grid md:grid-cols-3 gap-3 mt-6">
         <Card className="p-4">

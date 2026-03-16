@@ -18,6 +18,7 @@ export async function GET(
 const PatchSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
+  kind: z.enum(["assignment", "assessment"]).optional(),
   dueAt: z.string().optional(),
   startAt: z.string().optional().or(z.literal("")),
   endAt: z.string().optional().or(z.literal("")),

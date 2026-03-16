@@ -5,13 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { Code, Trophy, BookOpen, TerminalSquare, LogIn, LogOut, BarChart3, List, User, CreditCard, Shield, Sun, Moon, Wrench, ClipboardList } from "lucide-react";
+import { Code, Trophy, BookOpen, TerminalSquare, LogIn, LogOut, BarChart3, List, User, CreditCard, Shield, Sun, Moon, Wrench, ClipboardList, FileCheck2 } from "lucide-react";
 import { Container } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
 const nav: Array<{ href: string; label: string; icon: React.ElementType; title?: string }> = [
   { href: "/practice", label: "Practice", icon: TerminalSquare },
   { href: "/assignments", label: "Assignments", icon: ClipboardList, title: "My assignments & assessments" },
+  { href: "/assessments", label: "Assessments", icon: FileCheck2, title: "My assessments" },
   { href: "/compiler", label: "Compiler", icon: Wrench },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/contests", label: "Contests", icon: Trophy },
@@ -33,6 +34,7 @@ export function TopNav({ className }: { className?: string }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [meUser, setMeUser] = React.useState<string | null>(null);
   const [mounted, setMounted] = React.useState(false);
+  const [moreOpen, setMoreOpen] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
   React.useEffect(() => {
     fetch("/api/auth/me")
@@ -65,38 +67,85 @@ export function TopNav({ className }: { className?: string }) {
         </Link>
 
         <nav
-          className="hidden md:flex items-center gap-0.5 min-w-0 flex-1 overflow-x-auto justify-start px-2 scrollbar-hide"
+          className="hidden md:flex items-center gap-0.5 min-w-0 flex-1 justify-start px-2 mr-2"
           aria-label="Main navigation"
-          onWheel={(e) => {
-            const el = e.currentTarget;
-            if (el.scrollWidth <= el.clientWidth) return;
-            e.preventDefault();
-            el.scrollLeft += e.deltaY;
-          }}
         >
           {nav
+            .filter((n) => ["/practice", "/assignments", "/assessments", "/compiler"].includes(n.href))
             .filter((n) => !(isSignedIn && n.href === "/profile"))
             .map((n) => {
-            const Icon = n.icon;
-            const active = isActive(n.href, pathname);
-            const title = n.title;
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                title={title}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition shrink-0 min-w-0",
-                  active
-                    ? "text-brand bg-brand-muted border border-brand/20"
-                    : "text-muted hover:text-text hover:bg-white/5 border border-transparent"
-                )}
+              const Icon = n.icon;
+              const active = isActive(n.href, pathname);
+              const title = n.title;
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  title={title}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition shrink-0 min-w-0",
+                    active
+                      ? "text-brand bg-brand-muted border border-brand/20"
+                      : "text-muted hover:text-text hover:bg-white/5 border border-transparent"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap" title={title || n.label}>
+                    {n.label}
+                  </span>
+                </Link>
+              );
+            })}
+
+          {/* More dropdown for less-frequent links */}
+          <div className="relative ml-1">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium border transition shrink-0",
+                "text-muted hover:text-text hover:bg-white/5 border-border",
+                moreOpen && "bg-white/10 text-text"
+              )}
+            >
+              <span>More</span>
+            </button>
+            {moreOpen && (
+              <div
+                className="absolute right-0 mt-1 min-w-[180px] rounded-xl border border-border bg-bg shadow-lg py-1 z-50"
+                onMouseLeave={() => setMoreOpen(false)}
               >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="whitespace-nowrap" title={title || n.label}>{n.label}</span>
-              </Link>
-            );
-          })}
+                {nav
+                  .filter(
+                    (n) =>
+                      !["/practice", "/assignments", "/assessments", "/compiler"].includes(n.href)
+                  )
+                  .filter((n) => !(isSignedIn && n.href === "/profile"))
+                  .map((n) => {
+                    const Icon = n.icon;
+                    const active = isActive(n.href, pathname);
+                    const title = n.title;
+                    return (
+                      <Link
+                        key={n.href}
+                        href={n.href}
+                        title={title}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-1.5 text-sm transition",
+                          active ? "text-brand bg-brand-muted" : "text-muted hover:text-text hover:bg-white/5"
+                        )}
+                        onClick={() => setMoreOpen(false)}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                        <span className="whitespace-nowrap" title={title || n.label}>
+                          {n.label}
+                        </span>
+                      </Link>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
         </nav>
 
         <div className="flex items-center gap-2 shrink-0">

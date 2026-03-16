@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 
 type Item = {
-  assignment: { id: string; title: string; dueAt: string; description: string };
+  assignment: { id: string; title: string; dueAt: string; description: string; kind?: "assignment" | "assessment" };
   batch: { name: string; skill: string } | null;
   enrolment: { joinedAt: string; repoUrl?: string };
 };
@@ -13,7 +13,13 @@ type Item = {
 const FETCH_TIMEOUT_MS = 12_000;
 const HARD_STOP_MS = 10_000; // Always stop loading after this, no matter what
 
-export function AssignmentsListClient({ signedIn: _signedIn }: { signedIn: boolean }) {
+export function AssignmentsListClient({
+  signedIn: _signedIn,
+  kind,
+}: {
+  signedIn: boolean;
+  kind?: "assignment" | "assessment";
+}) {
   const [items, setItems] = React.useState<Item[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -44,7 +50,8 @@ export function AssignmentsListClient({ signedIn: _signedIn }: { signedIn: boole
     const controller = new AbortController();
     const abortId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    fetch("/api/assignments/my", { credentials: "include", signal: controller.signal })
+    const qs = kind ? `?kind=${encodeURIComponent(kind)}` : "";
+    fetch(`/api/assignments/my${qs}`, { credentials: "include", signal: controller.signal })
       .then(async (r) => {
         if (cancelled) return { ok: false, items: [] };
         if (r.status === 401) {
@@ -128,27 +135,52 @@ export function AssignmentsListClient({ signedIn: _signedIn }: { signedIn: boole
     );
   }
 
+  const bySkill = new Map<string, Item[]>();
+  for (const it of items) {
+    const skill = it.batch?.skill?.trim() || "Other";
+    bySkill.set(skill, [...(bySkill.get(skill) ?? []), it]);
+  }
+  const skillKeys = Array.from(bySkill.keys()).sort((a, b) => a.localeCompare(b));
+
   return (
-    <ul className="mt-6 space-y-3">
-      {items.map(({ assignment, batch, enrolment }) => (
-        <li key={assignment.id}>
-          <Link
-            href={`/assignments/${assignment.id}`}
-            className="block rounded-lg border border-border bg-card/80 p-4 hover:border-brand/30 transition"
-          >
-            <span className="font-medium">{assignment.title}</span>
-            {batch && <span className="text-xs text-muted ml-2">· {batch.name}</span>}
-            <p className="text-xs text-muted mt-1">
-              Due {new Date(assignment.dueAt).toLocaleString()}
-              {enrolment.repoUrl && (
-                <span className="ml-2">
-                  · <a href={enrolment.repoUrl} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline" onClick={(e) => e.stopPropagation()}>Repo</a>
-                </span>
-              )}
-            </p>
-          </Link>
-        </li>
+    <div className="mt-6 space-y-6">
+      {skillKeys.map((skill) => (
+        <div key={skill}>
+          <div className="text-xs font-semibold tracking-widest uppercase text-muted mb-2">
+            Skill: <span className="text-text">{skill}</span>
+          </div>
+          <ul className="space-y-3">
+            {(bySkill.get(skill) ?? []).map(({ assignment, batch, enrolment }) => (
+              <li key={assignment.id}>
+                <Link
+                  href={`/assignments/${assignment.id}`}
+                  className="block rounded-lg border border-border bg-card/80 p-4 hover:border-brand/30 transition"
+                >
+                  <span className="font-medium">{assignment.title}</span>
+                  {batch && <span className="text-xs text-muted ml-2">· {batch.name}</span>}
+                  <p className="text-xs text-muted mt-1">
+                    Due {new Date(assignment.dueAt).toLocaleString()}
+                    {enrolment.repoUrl && (
+                      <span className="ml-2">
+                        ·{" "}
+                        <a
+                          href={enrolment.repoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Repo
+                        </a>
+                      </span>
+                    )}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }

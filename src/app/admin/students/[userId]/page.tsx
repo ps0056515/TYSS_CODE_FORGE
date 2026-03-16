@@ -4,7 +4,7 @@ import { listAllAssignments, listEnrolmentsByUser, getBatch } from "@/lib/assign
 import { loadAllSubmissionsCached, computeCodingProgressForUser, isAtRiskRuleBased } from "@/lib/dashboard-metrics";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DashboardKpiCard, DashboardSection, DashboardCard } from "@/components/dashboard";
+import { DashboardKpiCard, DashboardSection, DashboardCard, ProgressBar } from "@/components/dashboard";
 import { verdictLabel, verdictColorClass } from "@/lib/verdicts";
 import { User, ListTodo, Activity, ArrowLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -74,6 +74,29 @@ export default async function AdminStudentProfilePage({
   const passedSubs = subs.filter((s) => s.user === decodedId && (s.verdict === "AC" || s.score === 100)).length;
   const successRate = totalSubs > 0 ? Math.round((passedSubs / totalSubs) * 100) : 0;
 
+  const skillStats = (() => {
+    const map = new Map<string, { total: number; completed: number; sumPct: number; countPct: number }>();
+    for (const r of rows) {
+      const skill = r.batch?.skill?.trim() || "Other";
+      const entry = map.get(skill) ?? { total: 0, completed: 0, sumPct: 0, countPct: 0 };
+      entry.total += 1;
+      const pct =
+        r.assignment.type === "coding_set" && r.prog && r.prog.total > 0
+          ? r.prog.solved / r.prog.total
+          : 0;
+      entry.sumPct += pct;
+      entry.countPct += 1;
+      if (pct >= 1) entry.completed += 1;
+      map.set(skill, entry);
+    }
+    return Array.from(map.entries()).map(([skill, s]) => ({
+      skill,
+      total: s.total,
+      completed: s.completed,
+      avgPct: s.countPct ? s.sumPct / s.countPct : 0,
+    }));
+  })();
+
   return (
     <Container className="py-8 md:py-10">
       <Link
@@ -133,6 +156,37 @@ export default async function AdminStudentProfilePage({
           subtitle="Across all assignments"
         />
       </div>
+
+      {skillStats.length > 0 && (
+        <DashboardSection
+          title="Skill-wise progress"
+          description="Completion across technologies (Organization → Batch → Skill)"
+          icon={Activity}
+          className="mb-8"
+        >
+          <DashboardCard className="p-5 space-y-4">
+            {skillStats.map((s) => (
+              <div key={s.skill}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm font-medium text-text">
+                    {s.skill}
+                  </div>
+                  <div className="text-xs text-muted">
+                    {s.completed}/{s.total} assignments completed
+                  </div>
+                </div>
+                <ProgressBar
+                  value={Math.round(s.avgPct * 100)}
+                  max={100}
+                  tone={s.avgPct >= 1 ? "success" : s.avgPct > 0 ? "warning" : "default"}
+                  height="sm"
+                  className="max-w-xl"
+                />
+              </div>
+            ))}
+          </DashboardCard>
+        </DashboardSection>
+      )}
 
       <DashboardSection
         title="Assignments"
