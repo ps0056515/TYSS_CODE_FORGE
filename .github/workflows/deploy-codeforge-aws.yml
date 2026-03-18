@@ -39,12 +39,10 @@ jobs:
             # Build (if applicable)
             npm run build || echo "No build step"
 
-            npm run dev
-
             # Restart systemd service
             systemctl restart nodeapp
 
             # Verify service
-            sudo systemctl status nodeapp --no-pager
+            systemctl status nodeapp --no-pager
 
             echo "Deployment completed successfully"
