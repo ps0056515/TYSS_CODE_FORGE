@@ -1,5 +1,9 @@
 -- PostgresSQL Initialization Script for CodeForge
 
+-- npm install -D tsx  
+
+-- npx tsx prisma/seed.ts
+
 --npx prisma db push
 
 --sudo -i -u postgres
