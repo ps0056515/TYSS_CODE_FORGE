@@ -34,15 +34,19 @@ jobs:
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
             # Install dependencies
+            echo "Install Service..."
             npm install
 
             # Build (if applicable)
+            echo "Build Service..."
             npm run build || echo "No build step"
 
             # Restart systemd service
-            systemctl restart nodeapp
+            echo "Restart Service..."
+            sudo systemctl restart nodeapp
 
             # Verify service
+            echo "Verify Service..."
             systemctl status nodeapp --no-pager
 
             echo "Deployment completed successfully"
