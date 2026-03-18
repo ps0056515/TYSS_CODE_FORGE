@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  createdAt     DateTime       @default(now())
+  businessUnits BusinessUnit[]
+}
+
+model BusinessUnit {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  slug           String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  batches        Batch[]
+}
+
+model Batch {
+  id             String       @id @default(cuid())
+  businessUnitId String
+  name           String
+  slug           String
+  skill          String
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime     @default(now())
+  businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id])
+  assignments    Assignment[]
+  materials      Material[]
+}
+
+model Assignment {
+  id                  String      @id @default(cuid())
+  batchId             String
+  title               String
+  slug                String      @unique
+  description         String
+  kind                String      @default("assignment")
+  dueAt               DateTime
+  startAt             DateTime?
+  endAt               DateTime?
+  type                String      @default("general")
+  templateRepoUrl     String?
+  codingSet           Json?
+  codeforgeProblemId  String?
+  projectInstructions String?
+  createdAt           DateTime    @default(now())
+  batch               Batch       @relation(fields: [batchId], references: [id])
+  enrolments          Enrolment[]
+}
+
+model Enrolment {
+  id           String     @id @default(cuid())
+  assignmentId String
+  userId       String
+  repoUrl      String?
+  joinedAt     DateTime   @default(now())
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+
+  @@unique([assignmentId, userId])
+}
+
+model Material {
+  id           String   @id @default(cuid())
+  batchId      String
+  title        String
+  type         String
+  contentOrUrl String
+  day          Int?
+  order        Int
+  createdAt    DateTime @default(now())
+  batch        Batch    @relation(fields: [batchId], references: [id])
+}
+
+model CustomProblem {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  difficulty String
+  tags       String[]
+  languages  String[]
+  statement  String
+  examples   Json
+  type       String   @default("algorithm")
+  useCases   Json?
+  runConfig  Json?
+  createdAt  DateTime @default(now())
+}
+
+model Submission {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  problemSlug    String
+  user           String
+  language       String
+  verdict        String
+  score          Int
+  code           String
+  samplesPass    Boolean?
+  submissionType String?  @default("algorithm")
+  projectResult  Json?
+}

@@ -1,5 +1,4 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
+import { prisma } from "./prisma";
 import type {
   Organization,
   BusinessUnit,
@@ -9,158 +8,123 @@ import type {
   Material,
 } from "./assignment-platform-types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const ORGS_FILE = path.join(DATA_DIR, "organizations.json");
-const BUS_FILE = path.join(DATA_DIR, "business-units.json");
-const BATCHES_FILE = path.join(DATA_DIR, "batches.json");
-const ASSIGNMENTS_FILE = path.join(DATA_DIR, "assignments.json");
-const ENROLMENTS_FILE = path.join(DATA_DIR, "enrolments.json");
-const MATERIALS_FILE = path.join(DATA_DIR, "materials.json");
-
-const ENROLMENTS_CACHE_TTL_MS = 8_000;
-let enrolmentsCache: { list: Enrolment[]; at: number } | null = null;
-
-async function readEnrolments(): Promise<Enrolment[]> {
-  const now = Date.now();
-  if (enrolmentsCache && now - enrolmentsCache.at < ENROLMENTS_CACHE_TTL_MS) {
-    return enrolmentsCache.list;
-  }
-  const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
-  enrolmentsCache = { list, at: now };
-  return list;
-}
-
-function invalidateEnrolmentsCache() {
-  enrolmentsCache = null;
-}
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "") || "item";
-}
-
-function newId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-async function readJson<T>(file: string, defaultVal: T): Promise<T> {
-  try {
-    const raw = await fs.readFile(file, "utf8");
-    return JSON.parse(raw) as T;
-  } catch {
-    return defaultVal;
-  }
-}
-
-async function writeJson<T>(file: string, data: T): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(data, null, 2), "utf8");
+function formatDate(d: Date | null | undefined): string {
+  return d ? d.toISOString() : new Date().toISOString();
 }
 
 // --- Organizations
 export async function listOrganizations(): Promise<Organization[]> {
-  const list = await readJson<Organization[]>(ORGS_FILE, []);
-  return list.sort((a, b) => a.name.localeCompare(b.name));
+  const orgs = await prisma.organization.findMany({ orderBy: { name: 'asc' } });
+  return orgs.map(o => ({ ...o, createdAt: formatDate(o.createdAt) }));
 }
 
 export async function listAllBusinessUnits(): Promise<BusinessUnit[]> {
-  const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
-  return list.sort((a, b) => a.name.localeCompare(b.name));
+  const bus = await prisma.businessUnit.findMany({ orderBy: { name: 'asc' } });
+  return bus.map(b => ({ ...b, createdAt: formatDate(b.createdAt) }));
 }
 
 export async function listAllBatches(): Promise<Batch[]> {
-  const list = await readJson<Batch[]>(BATCHES_FILE, []);
-  return list.sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const batches = await prisma.batch.findMany({ orderBy: { startDate: 'desc' } });
+  return batches.map(b => ({
+    ...b,
+    startDate: formatDate(b.startDate),
+    endDate: formatDate(b.endDate),
+    createdAt: formatDate(b.createdAt),
+  }));
 }
 
 export async function listAllAssignments(): Promise<Assignment[]> {
-  const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
-  return list.sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  const assignments = await prisma.assignment.findMany({ orderBy: { dueAt: 'asc' } });
+  return assignments.map(a => ({
+    ...a,
+    dueAt: formatDate(a.dueAt),
+    startAt: formatDate(a.startAt),
+    endAt: formatDate(a.endAt),
+    createdAt: formatDate(a.createdAt),
+    codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+  }));
+}
+
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '') || "item";
 }
 
 export async function createOrganization(input: { name: string }): Promise<Organization> {
-  const list = await listOrganizations();
-  const slug = slugify(input.name);
-  const existing = list.find((o) => o.slug === slug);
-  const baseSlug = existing ? `${slug}-${Date.now().toString(36)}` : slug;
-  const org: Organization = {
-    id: newId(),
-    name: input.name.trim(),
-    slug: baseSlug,
-    createdAt: new Date().toISOString(),
-  };
-  list.push(org);
-  await writeJson(ORGS_FILE, list);
-  return org;
+  const baseSlug = slugify(input.name);
+  let slug = baseSlug;
+  let counter = 1;
+  while (await prisma.organization.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${counter++}`;
+  }
+  const org = await prisma.organization.create({
+    data: { name: input.name.trim(), slug }
+  });
+  return { ...org, createdAt: formatDate(org.createdAt) };
 }
 
 export async function getOrganization(id: string): Promise<Organization | null> {
-  const list = await listOrganizations();
-  return list.find((o) => o.id === id) ?? null;
+  const org = await prisma.organization.findUnique({ where: { id } });
+  return org ? { ...org, createdAt: formatDate(org.createdAt) } : null;
 }
 
 export async function updateOrganization(id: string, patch: { name: string }): Promise<Organization | null> {
-  const list = await listOrganizations();
-  const idx = list.findIndex((o) => o.id === id);
-  if (idx < 0) return null;
-  const name = patch.name.trim();
-  const slug = slugify(name);
-  const existing = list.find((o) => o.slug === slug && o.id !== id);
-  list[idx] = { ...list[idx], name, slug: existing ? `${slug}-${Date.now().toString(36)}` : slug };
-  await writeJson(ORGS_FILE, list);
-  return list[idx];
+  try {
+    const org = await prisma.organization.update({
+      where: { id },
+      data: { name: patch.name.trim() }
+    });
+    return { ...org, createdAt: formatDate(org.createdAt) };
+  } catch {
+    return null; // Record not found
+  }
 }
 
 // --- Business Units
 export async function listBusinessUnits(organizationId: string): Promise<BusinessUnit[]> {
-  const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
-  return list
-    .filter((b) => b.organizationId === organizationId)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const list = await prisma.businessUnit.findMany({
+    where: { organizationId },
+    orderBy: { name: 'asc' }
+  });
+  return list.map(b => ({ ...b, createdAt: formatDate(b.createdAt) }));
 }
 
-export async function createBusinessUnit(input: {
-  organizationId: string;
-  name: string;
-}): Promise<BusinessUnit> {
-  const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
+export async function createBusinessUnit(input: { organizationId: string; name: string; }): Promise<BusinessUnit> {
   const slug = slugify(input.name);
-  const bu: BusinessUnit = {
-    id: newId(),
-    organizationId: input.organizationId,
-    name: input.name.trim(),
-    slug,
-    createdAt: new Date().toISOString(),
-  };
-  list.push(bu);
-  await writeJson(BUS_FILE, list);
-  return bu;
+  const bu = await prisma.businessUnit.create({
+    data: { organizationId: input.organizationId, name: input.name.trim(), slug }
+  });
+  return { ...bu, createdAt: formatDate(bu.createdAt) };
 }
 
 export async function getBusinessUnit(id: string): Promise<BusinessUnit | null> {
-  const raw = await readJson<BusinessUnit[]>(BUS_FILE, []);
-  return raw.find((b) => b.id === id) ?? null;
+  const bu = await prisma.businessUnit.findUnique({ where: { id } });
+  return bu ? { ...bu, createdAt: formatDate(bu.createdAt) } : null;
 }
 
 export async function updateBusinessUnit(id: string, patch: { name: string }): Promise<BusinessUnit | null> {
-  const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
-  const idx = list.findIndex((b) => b.id === id);
-  if (idx < 0) return null;
-  list[idx] = { ...list[idx], name: patch.name.trim(), slug: slugify(patch.name.trim()) };
-  await writeJson(BUS_FILE, list);
-  return list[idx];
+  try {
+    const bu = await prisma.businessUnit.update({
+      where: { id },
+      data: { name: patch.name.trim(), slug: slugify(patch.name.trim()) }
+    });
+    return { ...bu, createdAt: formatDate(bu.createdAt) };
+  } catch {
+    return null;
+  }
 }
 
 // --- Batches
 export async function listBatches(businessUnitId: string): Promise<Batch[]> {
-  const list = await readJson<Batch[]>(BATCHES_FILE, []);
-  return list
-    .filter((b) => b.businessUnitId === businessUnitId)
-    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const list = await prisma.batch.findMany({
+    where: { businessUnitId },
+    orderBy: { startDate: 'desc' }
+  });
+  return list.map(b => ({
+    ...b,
+    startDate: formatDate(b.startDate),
+    endDate: formatDate(b.endDate),
+    createdAt: formatDate(b.createdAt)
+  }));
 }
 
 export async function createBatch(input: {
@@ -170,55 +134,75 @@ export async function createBatch(input: {
   startDate: string;
   endDate: string;
 }): Promise<Batch> {
-  const list = await readJson<Batch[]>(BATCHES_FILE, []);
   const slug = slugify(input.name);
-  const batch: Batch = {
-    id: newId(),
-    businessUnitId: input.businessUnitId,
-    name: input.name.trim(),
-    slug,
-    skill: input.skill.trim(),
-    startDate: input.startDate,
-    endDate: input.endDate,
-    createdAt: new Date().toISOString(),
+  const batch = await prisma.batch.create({
+    data: {
+      businessUnitId: input.businessUnitId,
+      name: input.name.trim(),
+      slug,
+      skill: input.skill.trim(),
+      startDate: new Date(input.startDate),
+      endDate: new Date(input.endDate)
+    }
+  });
+  return {
+    ...batch,
+    startDate: formatDate(batch.startDate),
+    endDate: formatDate(batch.endDate),
+    createdAt: formatDate(batch.createdAt)
   };
-  list.push(batch);
-  await writeJson(BATCHES_FILE, list);
-  return batch;
 }
 
 export async function getBatch(id: string): Promise<Batch | null> {
-  const raw = await readJson<Batch[]>(BATCHES_FILE, []);
-  return raw.find((b) => b.id === id) ?? null;
+  const b = await prisma.batch.findUnique({ where: { id } });
+  return b ? {
+    ...b,
+    startDate: formatDate(b.startDate),
+    endDate: formatDate(b.endDate),
+    createdAt: formatDate(b.createdAt)
+  } : null;
 }
 
 export async function updateBatch(
   id: string,
   patch: Partial<Pick<Batch, "name" | "skill" | "startDate" | "endDate">>
 ): Promise<Batch | null> {
-  const list = await readJson<Batch[]>(BATCHES_FILE, []);
-  const idx = list.findIndex((b) => b.id === id);
-  if (idx < 0) return null;
-  const curr = list[idx];
-  const name = patch.name !== undefined ? patch.name.trim() : curr.name;
-  list[idx] = {
-    ...curr,
-    name: patch.name !== undefined ? patch.name.trim() : curr.name,
-    slug: patch.name !== undefined ? slugify(patch.name.trim()) : curr.slug,
-    skill: patch.skill !== undefined ? patch.skill.trim() : curr.skill,
-    startDate: patch.startDate ?? curr.startDate,
-    endDate: patch.endDate ?? curr.endDate,
-  };
-  await writeJson(BATCHES_FILE, list);
-  return list[idx];
+  const data: any = {};
+  if (patch.name !== undefined) {
+    data.name = patch.name.trim();
+    data.slug = slugify(patch.name.trim());
+  }
+  if (patch.skill !== undefined) data.skill = patch.skill.trim();
+  if (patch.startDate !== undefined) data.startDate = new Date(patch.startDate);
+  if (patch.endDate !== undefined) data.endDate = new Date(patch.endDate);
+
+  try {
+    const b = await prisma.batch.update({ where: { id }, data });
+    return {
+      ...b,
+      startDate: formatDate(b.startDate),
+      endDate: formatDate(b.endDate),
+      createdAt: formatDate(b.createdAt)
+    };
+  } catch {
+    return null;
+  }
 }
 
 // --- Assignments
 export async function listAssignments(batchId: string): Promise<Assignment[]> {
-  const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
-  return list
-    .filter((a) => a.batchId === batchId)
-    .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  const list = await prisma.assignment.findMany({
+    where: { batchId },
+    orderBy: { dueAt: 'asc' }
+  });
+  return list.map(a => ({
+    ...a,
+    dueAt: formatDate(a.dueAt),
+    startAt: formatDate(a.startAt),
+    endAt: formatDate(a.endAt),
+    createdAt: formatDate(a.createdAt),
+    codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+  }));
 }
 
 export async function createAssignment(input: {
@@ -232,141 +216,192 @@ export async function createAssignment(input: {
   codeforgeProblemId?: string;
   codingSet?: Assignment["codingSet"];
 }): Promise<Assignment> {
-  const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
-  const slug = slugify(input.title);
-  const assignment: Assignment = {
-    id: newId(),
-    batchId: input.batchId,
-    title: input.title.trim(),
-    slug,
-    description: input.description.trim(),
-    kind: input.kind ?? "assignment",
-    dueAt: input.dueAt,
-    type: input.type ?? "general",
-    templateRepoUrl: input.templateRepoUrl?.trim() || undefined,
-    codeforgeProblemId: input.codeforgeProblemId?.trim() || undefined,
-    codingSet: input.codingSet,
-    createdAt: new Date().toISOString(),
+  const baseSlug = slugify(input.title);
+  let slug = baseSlug;
+  let counter = 1;
+  while (await prisma.assignment.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${counter++}`;
+  }
+  
+  const a = await prisma.assignment.create({
+    data: {
+      batchId: input.batchId,
+      title: input.title.trim(),
+      slug,
+      description: input.description.trim(),
+      kind: input.kind ?? "assignment",
+      type: input.type ?? "general",
+      dueAt: new Date(input.dueAt),
+      templateRepoUrl: input.templateRepoUrl?.trim() || null,
+      codeforgeProblemId: input.codeforgeProblemId?.trim() || null,
+      codingSet: input.codingSet as object,
+    }
+  });
+
+  return {
+    ...a,
+    templateRepoUrl: a.templateRepoUrl ?? undefined,
+    codeforgeProblemId: a.codeforgeProblemId ?? undefined,
+    dueAt: formatDate(a.dueAt),
+    startAt: formatDate(a.startAt),
+    endAt: formatDate(a.endAt),
+    createdAt: formatDate(a.createdAt),
+    codingSet: a.codingSet as Assignment["codingSet"] | undefined,
   };
-  list.push(assignment);
-  await writeJson(ASSIGNMENTS_FILE, list);
-  return assignment;
 }
 
 export async function getAssignment(id: string): Promise<Assignment | null> {
-  const raw = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
-  return raw.find((a) => a.id === id) ?? null;
+  const a = await prisma.assignment.findUnique({ where: { id } });
+  return a ? {
+    ...a,
+    templateRepoUrl: a.templateRepoUrl ?? undefined,
+    codeforgeProblemId: a.codeforgeProblemId ?? undefined,
+    dueAt: formatDate(a.dueAt),
+    startAt: formatDate(a.startAt),
+    endAt: formatDate(a.endAt),
+    createdAt: formatDate(a.createdAt),
+    codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+    projectInstructions: a.projectInstructions ?? undefined,
+  } : null;
 }
 
 export async function getAssignmentBySlug(slug: string): Promise<Assignment | null> {
-  const raw = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
-  return raw.find((a) => a.slug === slug) ?? null;
+  const a = await prisma.assignment.findUnique({ where: { slug } });
+  return a ? {
+    ...a,
+    templateRepoUrl: a.templateRepoUrl ?? undefined,
+    codeforgeProblemId: a.codeforgeProblemId ?? undefined,
+    dueAt: formatDate(a.dueAt),
+    startAt: formatDate(a.startAt),
+    endAt: formatDate(a.endAt),
+    createdAt: formatDate(a.createdAt),
+    codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+    projectInstructions: a.projectInstructions ?? undefined,
+  } : null;
 }
 
 export async function updateAssignment(
   id: string,
   patch: Partial<Pick<Assignment, "title" | "description" | "kind" | "dueAt" | "startAt" | "endAt" | "type" | "codingSet" | "codeforgeProblemId" | "templateRepoUrl" | "projectInstructions">>
 ): Promise<Assignment | null> {
-  const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
-  const idx = list.findIndex((a) => a.id === id);
-  if (idx < 0) return null;
-  const curr = list[idx];
-  const next: Assignment = {
-    ...curr,
-    ...patch,
-    title: (patch.title ?? curr.title).trim(),
-    description: (patch.description ?? curr.description).trim(),
-    kind: patch.kind ?? curr.kind ?? "assignment",
-    templateRepoUrl: (patch.templateRepoUrl ?? curr.templateRepoUrl)?.trim() || undefined,
-    startAt: patch.startAt !== undefined ? (patch.startAt || undefined) : curr.startAt,
-    endAt: patch.endAt !== undefined ? (patch.endAt || undefined) : curr.endAt,
-    codeforgeProblemId: (patch.codeforgeProblemId ?? curr.codeforgeProblemId)?.trim() || undefined,
-    projectInstructions: patch.projectInstructions !== undefined ? patch.projectInstructions : curr.projectInstructions,
-  };
-  // keep slug stable for links
-  list[idx] = next;
-  await writeJson(ASSIGNMENTS_FILE, list);
-  return next;
+  const data: any = { ...patch };
+  if (patch.title !== undefined) data.title = patch.title.trim();
+  if (patch.description !== undefined) data.description = patch.description.trim();
+  if (patch.dueAt !== undefined) data.dueAt = new Date(patch.dueAt);
+  if (patch.startAt !== undefined) data.startAt = patch.startAt ? new Date(patch.startAt) : null;
+  if (patch.endAt !== undefined) data.endAt = patch.endAt ? new Date(patch.endAt) : null;
+  if (data.codingSet !== undefined) data.codingSet = data.codingSet as any;
+
+  try {
+    const a = await prisma.assignment.update({ where: { id }, data });
+    return {
+      ...a,
+      templateRepoUrl: a.templateRepoUrl ?? undefined,
+      codeforgeProblemId: a.codeforgeProblemId ?? undefined,
+      dueAt: formatDate(a.dueAt),
+      startAt: formatDate(a.startAt),
+      endAt: formatDate(a.endAt),
+      createdAt: formatDate(a.createdAt),
+      codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+      projectInstructions: a.projectInstructions ?? undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // --- Enrolments
 export async function listEnrolments(assignmentId: string): Promise<Enrolment[]> {
-  const list = await readEnrolments();
-  return list
-    .filter((e) => e.assignmentId === assignmentId)
-    .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt));
+  const list = await prisma.enrolment.findMany({
+    where: { assignmentId },
+    orderBy: { joinedAt: 'asc' }
+  });
+  return list.map(e => ({
+    ...e,
+    repoUrl: e.repoUrl ?? undefined,
+    joinedAt: formatDate(e.joinedAt)
+  }));
 }
 
 export async function getEnrolment(assignmentId: string, userId: string): Promise<Enrolment | null> {
-  const list = await readEnrolments();
-  return list.find((e) => e.assignmentId === assignmentId && e.userId === userId) ?? null;
+  const e = await prisma.enrolment.findUnique({
+    where: { assignmentId_userId: { assignmentId, userId } }
+  });
+  return e ? { ...e, repoUrl: e.repoUrl ?? undefined, joinedAt: formatDate(e.joinedAt) } : null;
 }
 
 export async function joinAssignment(assignmentId: string, userId: string, repoUrl?: string): Promise<Enrolment> {
-  invalidateEnrolmentsCache();
-  const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
-  const existing = list.find((e) => e.assignmentId === assignmentId && e.userId === userId);
-  if (existing) {
-    if (repoUrl && repoUrl.trim()) {
-      existing.repoUrl = repoUrl.trim();
-      await writeJson(ENROLMENTS_FILE, list);
-      invalidateEnrolmentsCache();
-    }
-    return existing;
-  }
-  const enrolment: Enrolment = {
-    id: newId(),
-    assignmentId,
-    userId,
-    repoUrl: repoUrl?.trim() || undefined,
-    joinedAt: new Date().toISOString(),
-  };
-  list.push(enrolment);
-  await writeJson(ENROLMENTS_FILE, list);
-  invalidateEnrolmentsCache();
-  return enrolment;
+  const e = await prisma.enrolment.upsert({
+    where: { assignmentId_userId: { assignmentId, userId } },
+    update: repoUrl ? { repoUrl: repoUrl.trim() } : {},
+    create: { assignmentId, userId, repoUrl: repoUrl?.trim() || null }
+  });
+  return { ...e, repoUrl: e.repoUrl ?? undefined, joinedAt: formatDate(e.joinedAt) };
 }
 
 export async function removeEnrolment(assignmentId: string, userId: string): Promise<boolean> {
-  invalidateEnrolmentsCache();
-  const list = await readJson<Enrolment[]>(ENROLMENTS_FILE, []);
-  const idx = list.findIndex((e) => e.assignmentId === assignmentId && e.userId === userId);
-  if (idx < 0) return false;
-  list.splice(idx, 1);
-  await writeJson(ENROLMENTS_FILE, list);
-  invalidateEnrolmentsCache();
-  return true;
+  try {
+    await prisma.enrolment.delete({
+      where: { assignmentId_userId: { assignmentId, userId } }
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function listEnrolmentsByUser(userId: string): Promise<Enrolment[]> {
-  const list = await readEnrolments();
-  return list.filter((e) => e.userId === userId);
+  const list = await prisma.enrolment.findMany({ where: { userId } });
+  return list.map(e => ({ ...e, repoUrl: e.repoUrl ?? undefined, joinedAt: formatDate(e.joinedAt) }));
 }
 
-/** Returns assignments the user is enrolled in, with batch and enrolment info */
 export async function listMyAssignments(userId: string): Promise<
   Array<{ assignment: Assignment; batch: Batch | null; enrolment: Enrolment }>
 > {
-  const enrolments = await listEnrolmentsByUser(userId);
-  const result: Array<{ assignment: Assignment; batch: Batch | null; enrolment: Enrolment }> = [];
-  const assignments = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
-  const batches = await readJson<Batch[]>(BATCHES_FILE, []);
-  for (const e of enrolments) {
-    const assignment = assignments.find((a) => a.id === e.assignmentId);
-    if (!assignment) continue;
-    const batch = batches.find((b) => b.id === assignment.batchId) ?? null;
-    result.push({ assignment, batch, enrolment: e });
-  }
-  result.sort((a, b) => a.assignment.dueAt.localeCompare(b.assignment.dueAt));
-  return result;
+  const list = await prisma.enrolment.findMany({
+    where: { userId },
+    include: {
+      assignment: { include: { batch: true } }
+    }
+  });
+
+  const result = list.map(e => {
+    const a = e.assignment;
+    const b = a.batch;
+    return {
+      enrolment: { ...e, assignment: undefined, repoUrl: e.repoUrl ?? undefined, joinedAt: formatDate(e.joinedAt) },
+      assignment: {
+        ...a,
+        batch: undefined,
+        templateRepoUrl: a.templateRepoUrl ?? undefined,
+        codeforgeProblemId: a.codeforgeProblemId ?? undefined,
+        dueAt: formatDate(a.dueAt),
+        startAt: formatDate(a.startAt),
+        endAt: formatDate(a.endAt),
+        createdAt: formatDate(a.createdAt),
+        codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+        projectInstructions: a.projectInstructions ?? undefined,
+      },
+      batch: b ? {
+        ...b,
+        startDate: formatDate(b.startDate),
+        endDate: formatDate(b.endDate),
+        createdAt: formatDate(b.createdAt)
+      } : null
+    };
+  });
+
+  // @ts-ignore
+  return result.sort((x, y) => x.assignment.dueAt.localeCompare(y.assignment.dueAt));
 }
 
 // --- Materials
 export async function listMaterials(batchId: string): Promise<Material[]> {
-  const list = await readJson<Material[]>(MATERIALS_FILE, []);
-  return list
-    .filter((m) => m.batchId === batchId)
-    .sort((a, b) => a.order - b.order || (a.day ?? 0) - (b.day ?? 0));
+  const list = await prisma.material.findMany({
+    where: { batchId },
+    orderBy: [{ order: 'asc' }, { day: 'asc' }]
+  });
+  return list.map(m => ({ ...m, day: m.day ?? undefined, type: m.type as Material["type"], createdAt: formatDate(m.createdAt) }));
 }
 
 export async function createMaterial(input: {
@@ -377,19 +412,19 @@ export async function createMaterial(input: {
   day?: number;
   order?: number;
 }): Promise<Material> {
-  const list = await readJson<Material[]>(MATERIALS_FILE, []);
-  const maxOrder = list.filter((m) => m.batchId === input.batchId).reduce((max, m) => Math.max(max, m.order), 0);
-  const material: Material = {
-    id: newId(),
-    batchId: input.batchId,
-    title: input.title.trim(),
-    type: input.type,
-    contentOrUrl: input.contentOrUrl.trim(),
-    day: input.day,
-    order: input.order ?? maxOrder + 1,
-    createdAt: new Date().toISOString(),
-  };
-  list.push(material);
-  await writeJson(MATERIALS_FILE, list);
-  return material;
+  const maxM = await prisma.material.findFirst({
+    where: { batchId: input.batchId },
+    orderBy: { order: 'desc' }
+  });
+  const m = await prisma.material.create({
+    data: {
+      batchId: input.batchId,
+      title: input.title.trim(),
+      type: input.type,
+      contentOrUrl: input.contentOrUrl.trim(),
+      day: input.day || null,
+      order: input.order ?? ((maxM?.order || 0) + 1)
+    }
+  });
+  return { ...m, day: m.day ?? undefined, type: m.type as Material["type"], createdAt: formatDate(m.createdAt) };
 }
