@@ -47,6 +47,6 @@ jobs:
 
             # Verify service
             echo "Verify Service..."
-            sudo systemctl status nodeapp --no-pager
+            sudo systemctl is-active nodeapp
 
             echo "Deployment completed successfully"
