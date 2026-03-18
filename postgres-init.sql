@@ -1,5 +1,7 @@
 -- PostgresSQL Initialization Script for CodeForge
 
+--npx prisma db push
+
 --sudo -i -u postgres
 
 --psql
