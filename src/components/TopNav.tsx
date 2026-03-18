@@ -67,7 +67,7 @@ export function TopNav({ className }: { className?: string }) {
         </Link>
 
         <nav
-          className="hidden md:flex items-center gap-0.5 min-w-0 flex-1 justify-start px-2 mr-2"
+          className="hidden md:flex items-center gap-0.5 min-w-0 flex-1 justify-start px-2 mr-2 overflow-x-auto scrollbar-hide"
           aria-label="Main navigation"
         >
           {nav
@@ -148,18 +148,18 @@ export function TopNav({ className }: { className?: string }) {
           </div>
         </nav>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 min-w-0">
           <Link
             href="/admin"
             className={cn(
-              "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium border transition shrink-0",
+              "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium border transition shrink-0 max-w-[120px] lg:max-w-none",
               isActive("/admin", pathname)
                 ? "text-brand bg-brand-muted border-brand/20"
                 : "text-muted hover:text-text hover:bg-white/5 border-border"
             )}
           >
             <Shield className="h-4 w-4 shrink-0" />
-            <span className="whitespace-nowrap">Admin</span>
+            <span className="whitespace-nowrap truncate">Admin</span>
           </Link>
           <button
             type="button"
@@ -174,7 +174,7 @@ export function TopNav({ className }: { className?: string }) {
             {displayUser && (
               <Link
                 href="/profile"
-                className="hidden sm:flex items-center gap-2 rounded-lg px-3 py-2 border border-border bg-white/5 dark:bg-white/5 min-w-0 max-w-[180px] lg:max-w-[220px] hover:bg-white/10 hover:border-white/15 transition"
+                className="hidden sm:flex items-center gap-2 rounded-lg px-3 py-2 border border-border bg-white/5 dark:bg-white/5 min-w-0 max-w-[150px] lg:max-w-[220px] hover:bg-white/10 hover:border-white/15 transition"
                 title={`Signed in as ${displayUser}`}
               >
                 <User className="h-4 w-4 shrink-0 text-muted" aria-hidden />

@@ -37,6 +37,7 @@ async function main() {
   const enrolments = readJson('enrolments.json').map(convertDates)
   const materials = readJson('materials.json').map(convertDates)
   const customProblems = readJson('custom-problems.json').map(convertDates)
+  const batchMembers = readJson('batch-members.json').map(convertDates)
 
   // Organizations
   if (orgs.length > 0) {
@@ -54,6 +55,12 @@ async function main() {
   if (batches.length > 0) {
     await prisma.batch.createMany({ data: batches, skipDuplicates: true })
     console.log(`Migrated ${batches.length} batches`)
+  }
+
+  // Batch Members
+  if (batchMembers.length > 0) {
+    await prisma.batchMembership.createMany({ data: batchMembers, skipDuplicates: true })
+    console.log(`Migrated ${batchMembers.length} batch memberships`)
   }
 
   // Assignments

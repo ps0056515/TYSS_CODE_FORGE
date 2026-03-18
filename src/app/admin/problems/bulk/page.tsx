@@ -24,6 +24,7 @@ export default function AdminBulkProblemsPage() {
   const [tags, setTags] = React.useState<string[]>([]);
   const [languages, setLanguages] = React.useState<Lang[]>(["javascript", "python"]);
   const [titlesText, setTitlesText] = React.useState("");
+  const [itemsJson, setItemsJson] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [result, setResult] = React.useState<{
     created: number;
@@ -46,8 +47,9 @@ export default function AdminBulkProblemsPage() {
   }, [titlesText]);
 
   const handleSubmit = async () => {
-    if (titlesList.length === 0) {
-      setError("Enter at least one problem title (one per line).");
+    const hasItems = itemsJson.trim().length > 0;
+    if (!hasItems && titlesList.length === 0) {
+      setError("Enter at least one problem title (one per line), or paste JSON import items.");
       return;
     }
     if (languages.length === 0) {
@@ -58,12 +60,24 @@ export default function AdminBulkProblemsPage() {
     setResult(null);
     setSaving(true);
     try {
+      let items: unknown[] | undefined;
+      if (hasItems) {
+        try {
+          const parsed = JSON.parse(itemsJson) as unknown;
+          if (!Array.isArray(parsed)) throw new Error("JSON import must be an array.");
+          items = parsed;
+        } catch (e) {
+          setError(e instanceof Error ? `Invalid JSON: ${e.message}` : "Invalid JSON.");
+          setSaving(false);
+          return;
+        }
+      }
       const res = await fetch("/api/problems/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shared: { difficulty, tags, languages },
-          titles: titlesList,
+          ...(items ? { items } : { titles: titlesList }),
         }),
       });
       const data = (await res.json()) as {
@@ -83,6 +97,7 @@ export default function AdminBulkProblemsPage() {
         errors: data.errors,
       });
       setTitlesText("");
+      setItemsJson("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed.");
     } finally {
@@ -255,6 +270,41 @@ export default function AdminBulkProblemsPage() {
           <p className="text-xs text-muted mt-2">
             {titlesList.length} problem{titlesList.length !== 1 ? "s" : ""} will be created.
           </p>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-sm font-semibold text-text border-b border-border pb-2 mb-4">
+            Advanced JSON import (optional)
+          </h2>
+          <p className="text-xs text-muted mb-3">
+            If you paste JSON here, it will be used instead of the titles list. This supports{" "}
+            <strong>sample examples</strong> and <strong>hidden tests</strong> per problem.
+          </p>
+          <details className="mb-3">
+            <summary className="text-xs text-muted cursor-pointer select-none">Show JSON template</summary>
+            <pre className="mt-2 text-[11px] font-mono bg-card/60 border border-border rounded-lg p-3 text-muted whitespace-pre-wrap">
+{`[
+  {
+    "title": "Two Sum",
+    "slug": "two-sum",
+    "type": "algorithm",
+    "statement": "Solve ...",
+    "examples": [
+      { "input": "2 3", "output": "5", "explanation": "2+3=5" }
+    ],
+    "hiddenTests": [
+      { "input": "10 20", "output": "30" }
+    ]
+  }
+]`}
+            </pre>
+          </details>
+          <textarea
+            value={itemsJson}
+            onChange={(e) => setItemsJson(e.target.value)}
+            className="w-full min-h-[220px] rounded-xl bg-black/40 dark:bg-white/5 border border-border px-4 py-3 text-sm font-mono outline-none focus:ring-2 focus:ring-brand/50 resize-y"
+            placeholder='Paste a JSON array of problem objects (see template above).'
+          />
         </Card>
 
         {error && (

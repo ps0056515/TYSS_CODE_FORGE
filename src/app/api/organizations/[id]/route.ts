@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { updateOrganization } from "@/lib/assignment-platform-store";
+import { updateOrganization, deleteOrganization } from "@/lib/assignment-platform-store";
 import { getUserAsync, isAdminUser, USER_COOKIE } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -27,4 +27,22 @@ export async function PATCH(
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await getUserAsync();
+  if (!user) return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
+  if (!isAdminUser(user)) return NextResponse.json({ ok: false, error: "Admins only" }, { status: 403 });
+  const { id } = await params;
+  const result = await deleteOrganization(id);
+  if (!result.ok) {
+    const status = result.error === "Not found" ? 404 : 409;
+    return NextResponse.json({ ok: false, error: result.error }, { status });
+  }
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(USER_COOKIE, user, { path: "/", sameSite: "lax", maxAge: 30 * 24 * 60 * 60 });
+  return res;
 }

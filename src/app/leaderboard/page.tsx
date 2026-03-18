@@ -71,17 +71,19 @@ export default async function LeaderboardPage() {
 
         <Card className="p-5">
           <div className="text-sm font-semibold">Problems</div>
-          <div className="mt-3 grid gap-2">
-            {problems.map((p) => (
-              <a
-                key={p.slug}
-                href={`/practice/${p.slug}`}
-                className="rounded-xl border border-border bg-white/5 p-3 hover:bg-white/10 transition"
-              >
-                <div className="font-semibold">{p.title}</div>
-                <div className="text-xs text-muted mt-1">{p.difficulty} · {p.tags.join(" · ")}</div>
-              </a>
-            ))}
+          <div className="mt-3 max-h-[560px] overflow-y-auto pr-1">
+            <div className="grid gap-2">
+              {problems.map((p) => (
+                <a
+                  key={p.slug}
+                  href={`/practice/${p.slug}`}
+                  className="rounded-xl border border-border bg-white/5 p-3 hover:bg-white/10 transition"
+                >
+                  <div className="font-semibold">{p.title}</div>
+                  <div className="text-xs text-muted mt-1">{p.difficulty} · {p.tags.join(" · ")}</div>
+                </a>
+              ))}
+            </div>
           </div>
         </Card>
       </div>

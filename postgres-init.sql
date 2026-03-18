@@ -104,6 +104,17 @@ CREATE TABLE "Material" (
     CONSTRAINT "Material_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "BatchMembership" (
+    "id" TEXT NOT NULL,
+    "batchId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "BatchMembership_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "BatchMembership_batchId_userId_key" ON "BatchMembership"("batchId", "userId");
+
 CREATE TABLE "CustomProblem" (
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -149,3 +160,5 @@ ALTER TABLE "Assignment" ADD CONSTRAINT "Assignment_batchId_fkey" FOREIGN KEY ("
 ALTER TABLE "Enrolment" ADD CONSTRAINT "Enrolment_assignmentId_fkey" FOREIGN KEY ("assignmentId") REFERENCES "Assignment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "Material" ADD CONSTRAINT "Material_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "Batch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "BatchMembership" ADD CONSTRAINT "BatchMembership_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "Batch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

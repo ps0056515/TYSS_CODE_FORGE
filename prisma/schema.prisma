@@ -37,6 +37,7 @@ model Batch {
   businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id])
   assignments    Assignment[]
   materials      Material[]
+  memberships    BatchMembership[]
 }
 
 model Assignment {
@@ -70,6 +71,16 @@ model Enrolment {
   @@unique([assignmentId, userId])
 }
 
+model BatchMembership {
+  id        String   @id @default(cuid())
+  batchId   String
+  userId    String
+  joinedAt  DateTime @default(now())
+  batch     Batch    @relation(fields: [batchId], references: [id])
+
+  @@unique([batchId, userId])
+}
+
 model Material {
   id           String   @id @default(cuid())
   batchId      String
@@ -91,6 +102,7 @@ model CustomProblem {
   languages  String[]
   statement  String
   examples   Json
+  hiddenTests Json?
   type       String   @default("algorithm")
   useCases   Json?
   runConfig  Json?

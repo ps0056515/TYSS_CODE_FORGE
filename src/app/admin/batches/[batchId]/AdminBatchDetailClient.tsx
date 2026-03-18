@@ -6,22 +6,39 @@ import { Card, Button } from "@/components/ui";
 
 type Assignment = { id: string; title: string; slug: string; dueAt: string };
 type Material = { id: string; title: string; type: string; contentOrUrl: string; day?: number; order: number };
+type BatchMember = { id: string; batchId: string; userId: string; joinedAt: string };
 
 export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string; batchName: string }) {
+  const [members, setMembers] = React.useState<BatchMember[]>([]);
+  const [membersLoading, setMembersLoading] = React.useState(true);
+  const [newUserId, setNewUserId] = React.useState("");
+  const [addMemberSubmitting, setAddMemberSubmitting] = React.useState(false);
   const [assignments, setAssignments] = React.useState<Assignment[]>([]);
   const [materials, setMaterials] = React.useState<Material[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [assignTitle, setAssignTitle] = React.useState("");
   const [assignDesc, setAssignDesc] = React.useState("");
+  const [assignKind, setAssignKind] = React.useState<"assignment" | "assessment">("assignment");
   const [assignDue, setAssignDue] = React.useState("");
   const [assignType, setAssignType] = React.useState<"general" | "coding_set" | "project_usecase">("coding_set");
   const [projectProblemSlug, setProjectProblemSlug] = React.useState("");
   const [assignSubmitting, setAssignSubmitting] = React.useState(false);
+  const [deletingAssignmentId, setDeletingAssignmentId] = React.useState<string | null>(null);
   const [matTitle, setMatTitle] = React.useState("");
   const [matType, setMatType] = React.useState<"handout" | "ref" | "link">("handout");
   const [matContent, setMatContent] = React.useState("");
   const [matDay, setMatDay] = React.useState("");
   const [matSubmitting, setMatSubmitting] = React.useState(false);
+
+  const loadMembers = React.useCallback(() => {
+    setMembersLoading(true);
+    fetch(`/api/batches/${encodeURIComponent(batchId)}/members`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.ok && Array.isArray(d.items)) setMembers(d.items);
+      })
+      .finally(() => setMembersLoading(false));
+  }, [batchId]);
 
   const load = React.useCallback(() => {
     setLoading(true);
@@ -37,6 +54,43 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
   React.useEffect(() => {
     load();
   }, [load]);
+  React.useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
+
+  const onAddMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    const uid = newUserId.trim();
+    if (!uid) return;
+    setAddMemberSubmitting(true);
+    fetch(`/api/batches/${encodeURIComponent(batchId)}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: uid }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok) {
+          setNewUserId("");
+          loadMembers();
+        } else alert(d.error || "Failed to add");
+      })
+      .finally(() => setAddMemberSubmitting(false));
+  };
+
+  const onRemoveMember = (userId: string) => {
+    if (!confirm(`Remove ${userId} from this batch? They will lose access to all batch assignments.`)) return;
+    fetch(`/api/batches/${encodeURIComponent(batchId)}/members`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok) loadMembers();
+        else alert(d.error || "Failed to remove");
+      });
+  };
 
   const onCreateAssignment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +103,7 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
         batchId,
         title: assignTitle.trim(),
         description: assignDesc.trim(),
+        kind: assignKind,
         dueAt: new Date(assignDue).toISOString(),
         type: assignType,
         codeforgeProblemId: assignType === "project_usecase" ? projectProblemSlug.trim() : "",
@@ -59,12 +114,25 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
         if (d.ok) {
           setAssignTitle("");
           setAssignDesc("");
+          setAssignKind("assignment");
           setAssignDue("");
           setProjectProblemSlug("");
           load();
         } else alert(d.error || "Failed");
       })
       .finally(() => setAssignSubmitting(false));
+  };
+
+  const onDeleteAssignment = (assignmentId: string, title: string) => {
+    if (!confirm(`Delete \"${title}\"? This is only allowed if it has no enrolled students.`)) return;
+    setDeletingAssignmentId(assignmentId);
+    fetch(`/api/assignments/${encodeURIComponent(assignmentId)}`, { method: "DELETE" })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (ok && d.ok) load();
+        else alert(d.error || "Delete blocked");
+      })
+      .finally(() => setDeletingAssignmentId(null));
   };
 
   const onCreateMaterial = (e: React.FormEvent) => {
@@ -97,10 +165,73 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
   return (
     <>
       <section className="mt-8">
+        <h2 className="text-lg font-semibold mb-3">Batch students</h2>
+        <p className="text-sm text-muted mb-3">
+          Students added here are automatically enrolled in all assignments in this batch. They will see the batch assignments under Assignments / Assessments.
+        </p>
+        <Card className="p-4 max-w-2xl mb-4">
+          <form onSubmit={onAddMember} className="flex flex-wrap items-end gap-3">
+            <label className="flex-1 min-w-[200px]">
+              <span className="block text-xs text-muted mb-1">Email or username</span>
+              <input
+                type="text"
+                value={newUserId}
+                onChange={(e) => setNewUserId(e.target.value)}
+                className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
+                placeholder="student@example.com or username"
+              />
+            </label>
+            <Button type="submit" disabled={addMemberSubmitting || !newUserId.trim()}>
+              {addMemberSubmitting ? "Adding…" : "Add student"}
+            </Button>
+          </form>
+        </Card>
+        {membersLoading ? (
+          <p className="text-sm text-muted">Loading…</p>
+        ) : members.length === 0 ? (
+          <p className="text-sm text-muted">No students in this batch yet. Add one above.</p>
+        ) : (
+          <ul className="space-y-2">
+            {members.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card/80 p-3">
+                <Link
+                  href={`/admin/students/${encodeURIComponent(m.userId)}`}
+                  className="text-sm font-medium text-brand hover:underline truncate"
+                >
+                  {m.userId}
+                </Link>
+                <span className="text-xs text-muted shrink-0">
+                  Joined {new Date(m.joinedAt).toLocaleDateString()}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveMember(m.userId)}
+                  className="text-xs text-red-600 dark:text-red-400 hover:underline shrink-0"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-10">
         <h2 className="text-lg font-semibold mb-3">Assignments</h2>
         <Card className="p-4 max-w-2xl mb-4">
           <form onSubmit={onCreateAssignment} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block">
+                <span className="block text-xs text-muted mb-1">Kind</span>
+                <select
+                  value={assignKind}
+                  onChange={(e) => setAssignKind(e.target.value as typeof assignKind)}
+                  className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
+                >
+                  <option value="assignment">Assignment</option>
+                  <option value="assessment">Assessment</option>
+                </select>
+              </label>
               <label className="block">
                 <span className="block text-xs text-muted mb-1">Assignment type</span>
                 <select
@@ -179,6 +310,15 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
                       <Link href={`/admin/assignments/${a.id}/edit`} className="text-xs text-muted hover:text-text underline">
                         Configure
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteAssignment(a.id, a.title)}
+                        disabled={deletingAssignmentId === a.id}
+                        className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-60"
+                        title="Delete (only if empty)"
+                      >
+                        {deletingAssignmentId === a.id ? "Deleting…" : "Delete"}
+                      </button>
                       <Link href={`/admin/assignments/${a.id}/dashboard`} className="text-xs text-brand hover:underline">
                         Dashboard →
                       </Link>

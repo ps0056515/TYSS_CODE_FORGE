@@ -6,10 +6,20 @@ import type {
   Assignment,
   Enrolment,
   Material,
+  BatchMembership,
 } from "./assignment-platform-types";
 
 function formatDate(d: Date | null | undefined): string {
   return d ? d.toISOString() : new Date().toISOString();
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "item";
 }
 
 // --- Organizations
@@ -37,16 +47,17 @@ export async function listAllAssignments(): Promise<Assignment[]> {
   const assignments = await prisma.assignment.findMany({ orderBy: { dueAt: 'asc' } });
   return assignments.map(a => ({
     ...a,
+    kind: a.kind as Assignment["kind"],
+    type: a.type as Assignment["type"],
+    templateRepoUrl: a.templateRepoUrl ?? undefined,
+    codeforgeProblemId: a.codeforgeProblemId ?? undefined,
     dueAt: formatDate(a.dueAt),
     startAt: formatDate(a.startAt),
     endAt: formatDate(a.endAt),
     createdAt: formatDate(a.createdAt),
     codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+    projectInstructions: a.projectInstructions ?? undefined,
   }));
-}
-
-function slugify(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '') || "item";
 }
 
 export async function createOrganization(input: { name: string }): Promise<Organization> {
@@ -79,6 +90,20 @@ export async function updateOrganization(id: string, patch: { name: string }): P
   }
 }
 
+/** Delete an organization only if it contains no business units. */
+export async function deleteOrganization(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const busCount = await prisma.businessUnit.count({ where: { organizationId: id } });
+    if (busCount > 0) {
+      return { ok: false, error: "Cannot delete: organization has business units." };
+    }
+    await prisma.organization.delete({ where: { id } });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Not found" };
+  }
+}
+
 // --- Business Units
 export async function listBusinessUnits(organizationId: string): Promise<BusinessUnit[]> {
   const list = await prisma.businessUnit.findMany({
@@ -89,7 +114,12 @@ export async function listBusinessUnits(organizationId: string): Promise<Busines
 }
 
 export async function createBusinessUnit(input: { organizationId: string; name: string; }): Promise<BusinessUnit> {
-  const slug = slugify(input.name);
+  const baseSlug = slugify(input.name);
+  let slug = baseSlug;
+  let counter = 1;
+  while (await prisma.businessUnit.findFirst({ where: { slug } })) {
+    slug = `${baseSlug}-${counter++}`;
+  }
   const bu = await prisma.businessUnit.create({
     data: { organizationId: input.organizationId, name: input.name.trim(), slug }
   });
@@ -110,6 +140,20 @@ export async function updateBusinessUnit(id: string, patch: { name: string }): P
     return { ...bu, createdAt: formatDate(bu.createdAt) };
   } catch {
     return null;
+  }
+}
+
+/** Delete a business unit only if it contains no batches. */
+export async function deleteBusinessUnit(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const batchesCount = await prisma.batch.count({ where: { businessUnitId: id } });
+    if (batchesCount > 0) {
+      return { ok: false, error: "Cannot delete: business unit has batches." };
+    }
+    await prisma.businessUnit.delete({ where: { id } });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Not found" };
   }
 }
 
@@ -134,7 +178,12 @@ export async function createBatch(input: {
   startDate: string;
   endDate: string;
 }): Promise<Batch> {
-  const slug = slugify(input.name);
+  const baseSlug = slugify(input.name);
+  let slug = baseSlug;
+  let counter = 1;
+  while (await prisma.batch.findFirst({ where: { slug } })) {
+    slug = `${baseSlug}-${counter++}`;
+  }
   const batch = await prisma.batch.create({
     data: {
       businessUnitId: input.businessUnitId,
@@ -189,6 +238,74 @@ export async function updateBatch(
   }
 }
 
+/** Delete a batch only if it contains no assignments or materials. */
+export async function deleteBatch(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const assignmentsCount = await prisma.assignment.count({ where: { batchId: id } });
+    if (assignmentsCount > 0) {
+      return { ok: false, error: "Cannot delete: batch has assignments/assessments." };
+    }
+    const materialsCount = await prisma.material.count({ where: { batchId: id } });
+    if (materialsCount > 0) {
+      return { ok: false, error: "Cannot delete: batch has materials." };
+    }
+    await prisma.batch.delete({ where: { id } });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Not found" };
+  }
+}
+
+// --- Batch members
+export async function listBatchMembers(batchId: string): Promise<BatchMembership[]> {
+  const list = await prisma.batchMembership.findMany({ where: { batchId } });
+  return list.map(m => ({ ...m, joinedAt: formatDate(m.joinedAt) }));
+}
+
+export async function listBatchesForUser(userId: string): Promise<Batch[]> {
+  const memberships = await prisma.batchMembership.findMany({
+    where: { userId },
+    include: { batch: true }
+  });
+  return memberships.map(m => ({
+    ...m.batch,
+    startDate: formatDate(m.batch.startDate),
+    endDate: formatDate(m.batch.endDate),
+    createdAt: formatDate(m.batch.createdAt)
+  }));
+}
+
+export async function addBatchMember(batchId: string, userId: string): Promise<BatchMembership> {
+  const membership = await prisma.batchMembership.upsert({
+    where: { batchId_userId: { batchId, userId } },
+    update: {},
+    create: { batchId, userId }
+  });
+
+  // Auto-enrol in all assignments in this batch
+  const assignments = await listAssignments(batchId);
+  for (const a of assignments) {
+    await joinAssignment(a.id, userId);
+  }
+  return { ...membership, joinedAt: formatDate(membership.joinedAt) };
+}
+
+export async function removeBatchMember(batchId: string, userId: string): Promise<boolean> {
+  try {
+    await prisma.batchMembership.delete({
+      where: { batchId_userId: { batchId, userId } }
+    });
+    // Remove enrolments for this batch's assignments
+    const assignments = await prisma.assignment.findMany({ where: { batchId } });
+    for (const a of assignments) {
+      await removeEnrolment(a.id, userId);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // --- Assignments
 export async function listAssignments(batchId: string): Promise<Assignment[]> {
   const list = await prisma.assignment.findMany({
@@ -197,11 +314,16 @@ export async function listAssignments(batchId: string): Promise<Assignment[]> {
   });
   return list.map(a => ({
     ...a,
+    kind: a.kind as Assignment["kind"],
+    type: a.type as Assignment["type"],
     dueAt: formatDate(a.dueAt),
     startAt: formatDate(a.startAt),
     endAt: formatDate(a.endAt),
     createdAt: formatDate(a.createdAt),
     codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+    projectInstructions: a.projectInstructions ?? undefined,
+    templateRepoUrl: a.templateRepoUrl ?? undefined,
+    codeforgeProblemId: a.codeforgeProblemId ?? undefined,
   }));
 }
 
@@ -219,7 +341,7 @@ export async function createAssignment(input: {
   const baseSlug = slugify(input.title);
   let slug = baseSlug;
   let counter = 1;
-  while (await prisma.assignment.findUnique({ where: { slug } })) {
+  while (await prisma.assignment.findFirst({ where: { slug } })) {
     slug = `${baseSlug}-${counter++}`;
   }
   
@@ -238,8 +360,20 @@ export async function createAssignment(input: {
     }
   });
 
+  // Auto-enrol all existing batch members so they see the new assignment
+  const members = await listBatchMembers(input.batchId);
+  for (const m of members) {
+    await prisma.enrolment.upsert({
+      where: { assignmentId_userId: { assignmentId: a.id, userId: m.userId } },
+      update: {},
+      create: { assignmentId: a.id, userId: m.userId }
+    });
+  }
+
   return {
     ...a,
+    kind: a.kind as Assignment["kind"],
+    type: a.type as Assignment["type"],
     templateRepoUrl: a.templateRepoUrl ?? undefined,
     codeforgeProblemId: a.codeforgeProblemId ?? undefined,
     dueAt: formatDate(a.dueAt),
@@ -247,6 +381,7 @@ export async function createAssignment(input: {
     endAt: formatDate(a.endAt),
     createdAt: formatDate(a.createdAt),
     codingSet: a.codingSet as Assignment["codingSet"] | undefined,
+    projectInstructions: a.projectInstructions ?? undefined,
   };
 }
 
@@ -254,6 +389,8 @@ export async function getAssignment(id: string): Promise<Assignment | null> {
   const a = await prisma.assignment.findUnique({ where: { id } });
   return a ? {
     ...a,
+    kind: a.kind as Assignment["kind"],
+    type: a.type as Assignment["type"],
     templateRepoUrl: a.templateRepoUrl ?? undefined,
     codeforgeProblemId: a.codeforgeProblemId ?? undefined,
     dueAt: formatDate(a.dueAt),
@@ -269,6 +406,8 @@ export async function getAssignmentBySlug(slug: string): Promise<Assignment | nu
   const a = await prisma.assignment.findUnique({ where: { slug } });
   return a ? {
     ...a,
+    kind: a.kind as Assignment["kind"],
+    type: a.type as Assignment["type"],
     templateRepoUrl: a.templateRepoUrl ?? undefined,
     codeforgeProblemId: a.codeforgeProblemId ?? undefined,
     dueAt: formatDate(a.dueAt),
@@ -296,6 +435,8 @@ export async function updateAssignment(
     const a = await prisma.assignment.update({ where: { id }, data });
     return {
       ...a,
+      kind: a.kind as Assignment["kind"],
+      type: a.type as Assignment["type"],
       templateRepoUrl: a.templateRepoUrl ?? undefined,
       codeforgeProblemId: a.codeforgeProblemId ?? undefined,
       dueAt: formatDate(a.dueAt),
@@ -307,6 +448,20 @@ export async function updateAssignment(
     };
   } catch {
     return null;
+  }
+}
+
+/** Delete an assignment only if it contains no enrolled students. */
+export async function deleteAssignment(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const enrolmentsCount = await prisma.enrolment.count({ where: { assignmentId: id } });
+    if (enrolmentsCount > 0) {
+      return { ok: false, error: "Cannot delete: assignment has enrolled students." };
+    }
+    await prisma.assignment.delete({ where: { id } });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Not found" };
   }
 }
 
@@ -369,29 +524,29 @@ export async function listMyAssignments(userId: string): Promise<
     const a = e.assignment;
     const b = a.batch;
     return {
-      enrolment: { ...e, assignment: undefined, repoUrl: e.repoUrl ?? undefined, joinedAt: formatDate(e.joinedAt) },
+      enrolment: { ...e, repoUrl: e.repoUrl ?? undefined, joinedAt: formatDate(e.joinedAt) } as Enrolment,
       assignment: {
         ...a,
-        batch: undefined,
+        kind: a.kind as Assignment["kind"],
+        type: a.type as Assignment["type"],
         templateRepoUrl: a.templateRepoUrl ?? undefined,
         codeforgeProblemId: a.codeforgeProblemId ?? undefined,
         dueAt: formatDate(a.dueAt),
-        startAt: formatDate(a.startAt),
-        endAt: formatDate(a.endAt),
+        startAt: formatDate(a.startAt).slice(0, 19), // Match return type formatting if needed
+        endAt: formatDate(a.endAt).slice(0, 19),
         createdAt: formatDate(a.createdAt),
         codingSet: a.codingSet as Assignment["codingSet"] | undefined,
         projectInstructions: a.projectInstructions ?? undefined,
-      },
-      batch: b ? {
+      } as Assignment,
+      batch: b ? ({
         ...b,
         startDate: formatDate(b.startDate),
         endDate: formatDate(b.endDate),
         createdAt: formatDate(b.createdAt)
-      } : null
+      } as Batch) : null
     };
   });
 
-  // @ts-ignore
   return result.sort((x, y) => x.assignment.dueAt.localeCompare(y.assignment.dueAt));
 }
 
