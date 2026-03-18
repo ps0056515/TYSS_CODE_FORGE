@@ -39,8 +39,10 @@ jobs:
             # Build (if applicable)
             npm run build || echo "No build step"
 
+            npm run dev
+
             # Restart systemd service
-            sudo systemctl restart nodeapp
+            systemctl restart nodeapp
 
             # Verify service
             sudo systemctl status nodeapp --no-pager
