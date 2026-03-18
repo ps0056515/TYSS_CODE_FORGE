@@ -79,6 +79,14 @@ export type Enrolment = {
   joinedAt: string;
 };
 
+/** Batch membership: user is enrolled in a batch and inherits access to its assignments/materials */
+export type BatchMembership = {
+  id: string;
+  batchId: string;
+  userId: string;
+  joinedAt: string;
+};
+
 export type MaterialType = "handout" | "ref" | "link";
 
 export type Material = {

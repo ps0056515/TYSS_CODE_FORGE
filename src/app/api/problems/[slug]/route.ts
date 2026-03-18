@@ -27,6 +27,11 @@ const ExampleSchema = z.object({
   explanation: z.string().optional(),
 });
 
+const HiddenTestSchema = z.object({
+  input: z.string(),
+  output: z.string(),
+});
+
 const PatchSchema = z.object({
   title: z.string().min(2).max(120).optional(),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).optional(),
@@ -35,6 +40,7 @@ const PatchSchema = z.object({
   statement: z.string().optional(),
   type: z.enum(["algorithm", "project"]).optional(),
   examples: z.array(ExampleSchema).optional(),
+  hiddenTests: z.array(HiddenTestSchema).optional(),
 });
 
 export async function PATCH(

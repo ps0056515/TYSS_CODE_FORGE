@@ -7,12 +7,14 @@ import type {
   Assignment,
   Enrolment,
   Material,
+  BatchMembership,
 } from "./assignment-platform-types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const ORGS_FILE = path.join(DATA_DIR, "organizations.json");
 const BUS_FILE = path.join(DATA_DIR, "business-units.json");
 const BATCHES_FILE = path.join(DATA_DIR, "batches.json");
+const BATCH_MEMBERS_FILE = path.join(DATA_DIR, "batch-members.json");
 const ASSIGNMENTS_FILE = path.join(DATA_DIR, "assignments.json");
 const ENROLMENTS_FILE = path.join(DATA_DIR, "enrolments.json");
 const MATERIALS_FILE = path.join(DATA_DIR, "materials.json");
@@ -115,6 +117,19 @@ export async function updateOrganization(id: string, patch: { name: string }): P
   return list[idx];
 }
 
+/** Delete an organization only if it contains no business units. */
+export async function deleteOrganization(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const bus = await readJson<BusinessUnit[]>(BUS_FILE, []);
+  if (bus.some((b) => b.organizationId === id)) {
+    return { ok: false, error: "Cannot delete: organization has business units." };
+  }
+  const orgs = await listOrganizations();
+  const filtered = orgs.filter((o) => o.id !== id);
+  if (filtered.length === orgs.length) return { ok: false, error: "Not found" };
+  await writeJson(ORGS_FILE, filtered);
+  return { ok: true };
+}
+
 // --- Business Units
 export async function listBusinessUnits(organizationId: string): Promise<BusinessUnit[]> {
   const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
@@ -153,6 +168,19 @@ export async function updateBusinessUnit(id: string, patch: { name: string }): P
   list[idx] = { ...list[idx], name: patch.name.trim(), slug: slugify(patch.name.trim()) };
   await writeJson(BUS_FILE, list);
   return list[idx];
+}
+
+/** Delete a business unit only if it contains no batches. */
+export async function deleteBusinessUnit(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const batches = await readJson<Batch[]>(BATCHES_FILE, []);
+  if (batches.some((b) => b.businessUnitId === id)) {
+    return { ok: false, error: "Cannot delete: business unit has batches." };
+  }
+  const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
+  const filtered = list.filter((b) => b.id !== id);
+  if (filtered.length === list.length) return { ok: false, error: "Not found" };
+  await writeJson(BUS_FILE, filtered);
+  return { ok: true };
 }
 
 // --- Batches
@@ -213,6 +241,85 @@ export async function updateBatch(
   return list[idx];
 }
 
+/** Delete a batch only if it contains no assignments, materials, or enrolled students. */
+export async function deleteBatch(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const assignments = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
+  if (assignments.some((a) => a.batchId === id)) {
+    return { ok: false, error: "Cannot delete: batch has assignments/assessments." };
+  }
+  const materials = await readJson<Material[]>(MATERIALS_FILE, []);
+  if (materials.some((m) => m.batchId === id)) {
+    return { ok: false, error: "Cannot delete: batch has materials." };
+  }
+  const members = await readJson<BatchMembership[]>(BATCH_MEMBERS_FILE, []);
+  if (members.some((m) => m.batchId === id)) {
+    return { ok: false, error: "Cannot delete: batch has enrolled students." };
+  }
+
+  const batches = await readJson<Batch[]>(BATCHES_FILE, []);
+  const filtered = batches.filter((b) => b.id !== id);
+  if (filtered.length === batches.length) return { ok: false, error: "Not found" };
+  await writeJson(BATCHES_FILE, filtered);
+  return { ok: true };
+}
+
+// --- Batch members (enrollment at batch level; members inherit access to batch assignments)
+async function readBatchMembers(): Promise<BatchMembership[]> {
+  const list = await readJson<BatchMembership[]>(BATCH_MEMBERS_FILE, []);
+  return list;
+}
+
+export async function listBatchMembers(batchId: string): Promise<BatchMembership[]> {
+  const list = await readBatchMembers();
+  return list.filter((m) => m.batchId === batchId);
+}
+
+export async function listBatchesForUser(userId: string): Promise<Batch[]> {
+  const list = await readBatchMembers();
+  const batchIds = [...new Set(list.filter((m) => m.userId === userId).map((m) => m.batchId))];
+  const batches = await readJson<Batch[]>(BATCHES_FILE, []);
+  return batches.filter((b) => batchIds.includes(b.id));
+}
+
+export async function addBatchMember(batchId: string, userId: string): Promise<BatchMembership> {
+  const list = await readBatchMembers();
+  const existing = list.find((m) => m.batchId === batchId && m.userId === userId);
+  if (existing) return existing;
+  const membership: BatchMembership = {
+    id: newId(),
+    batchId,
+    userId,
+    joinedAt: new Date().toISOString(),
+  };
+  list.push(membership);
+  await writeJson(BATCH_MEMBERS_FILE, list);
+
+  // Auto-enrol in all assignments in this batch so they appear in "My assignments"
+  const assignments = await listAssignments(batchId);
+  for (const a of assignments) {
+    const enrolments = await readEnrolments();
+    if (!enrolments.some((e) => e.assignmentId === a.id && e.userId === userId)) {
+      await joinAssignment(a.id, userId);
+    }
+  }
+  return membership;
+}
+
+export async function removeBatchMember(batchId: string, userId: string): Promise<boolean> {
+  const list = await readBatchMembers();
+  const idx = list.findIndex((m) => m.batchId === batchId && m.userId === userId);
+  if (idx < 0) return false;
+  list.splice(idx, 1);
+  await writeJson(BATCH_MEMBERS_FILE, list);
+
+  // Remove enrolments for this batch's assignments so they no longer see them
+  const assignments = await listAssignments(batchId);
+  for (const a of assignments) {
+    await removeEnrolment(a.id, userId);
+  }
+  return true;
+}
+
 // --- Assignments
 export async function listAssignments(batchId: string): Promise<Assignment[]> {
   const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
@@ -250,6 +357,12 @@ export async function createAssignment(input: {
   };
   list.push(assignment);
   await writeJson(ASSIGNMENTS_FILE, list);
+
+  // Auto-enrol all batch members so they see the new assignment
+  const members = await listBatchMembers(input.batchId);
+  for (const m of members) {
+    await joinAssignment(assignment.id, m.userId);
+  }
   return assignment;
 }
 
@@ -287,6 +400,19 @@ export async function updateAssignment(
   list[idx] = next;
   await writeJson(ASSIGNMENTS_FILE, list);
   return next;
+}
+
+/** Delete an assignment only if it contains no enrolled students. */
+export async function deleteAssignment(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const enrolments = await readEnrolments();
+  if (enrolments.some((e) => e.assignmentId === id)) {
+    return { ok: false, error: "Cannot delete: assignment has enrolled students." };
+  }
+  const list = await readJson<Assignment[]>(ASSIGNMENTS_FILE, []);
+  const filtered = list.filter((a) => a.id !== id);
+  if (filtered.length === list.length) return { ok: false, error: "Not found" };
+  await writeJson(ASSIGNMENTS_FILE, filtered);
+  return { ok: true };
 }
 
 // --- Enrolments

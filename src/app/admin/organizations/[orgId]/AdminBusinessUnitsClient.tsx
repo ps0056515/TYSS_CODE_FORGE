@@ -20,6 +20,7 @@ export function AdminBusinessUnitsClient({
   const [submitting, setSubmitting] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editName, setEditName] = React.useState("");
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
   const load = React.useCallback(() => {
     setLoading(true);
@@ -118,6 +119,25 @@ export function AdminBusinessUnitsClient({
                     </Link>
                     <div className="flex items-center gap-2 shrink-0">
                       <button type="button" onClick={() => { setEditingId(b.id); setEditName(b.name); }} className="p-2 rounded-lg border border-border text-muted hover:text-text hover:bg-white/5" title="Edit name"><Pencil className="h-4 w-4" /></button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!confirm(`Delete BU \"${b.name}\"? This is only allowed if it has no batches.`)) return;
+                          setDeletingId(b.id);
+                          fetch(`/api/business-units/${encodeURIComponent(b.id)}`, { method: "DELETE" })
+                            .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+                            .then(({ ok, d }) => {
+                              if (ok && d.ok) load();
+                              else alert(d.error || "Delete blocked");
+                            })
+                            .finally(() => setDeletingId(null));
+                        }}
+                        disabled={deletingId === b.id}
+                        className="px-3 py-2 rounded-lg border border-border text-xs text-red-600 dark:text-red-400 hover:bg-white/5"
+                        title="Delete (only if empty)"
+                      >
+                        {deletingId === b.id ? "Deleting…" : "Delete"}
+                      </button>
                       <Link href={`/admin/business-units/${b.id}`} className="text-sm text-brand">Add batches →</Link>
                     </div>
                   </div>

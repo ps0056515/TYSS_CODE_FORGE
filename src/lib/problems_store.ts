@@ -6,6 +6,7 @@ export type CustomProblemInput = Pick<Problem, "title" | "difficulty" | "tags" |
   slug?: string;
   statement?: string;
   examples?: Problem["examples"];
+  hiddenTests?: Problem["hiddenTests"];
   type?: Problem["type"];
   useCases?: UseCase[];
   runConfig?: RunConfig;
@@ -70,6 +71,7 @@ export async function addProblem(input: CustomProblemInput): Promise<Problem> {
     languages: input.languages,
     statement: input.statement?.trim() || "Statement coming soon.",
     examples: input.examples ?? [],
+    hiddenTests: input.hiddenTests ?? undefined,
     type: input.type ?? "algorithm",
     useCases: input.useCases ?? undefined,
     runConfig: input.runConfig ?? undefined
@@ -112,6 +114,7 @@ export async function addProblemsBulk(inputs: CustomProblemInput[]): Promise<{
       languages: input.languages ?? ["javascript", "python"],
       statement: input.statement?.trim() || "Statement coming soon.",
       examples: input.examples ?? [],
+      hiddenTests: input.hiddenTests ?? undefined,
       type: input.type ?? "algorithm",
       useCases: input.useCases ?? undefined,
       runConfig: input.runConfig ?? undefined,
@@ -152,6 +155,7 @@ export async function updateProblem(
     languages: patch.languages ?? existing.languages,
     statement: (patch.statement !== undefined ? patch.statement : existing.statement) ?? "Statement coming soon.",
     examples: patch.examples ?? existing.examples,
+    hiddenTests: patch.hiddenTests !== undefined ? patch.hiddenTests : existing.hiddenTests,
     type: patch.type ?? existing.type,
     useCases: patch.useCases !== undefined ? patch.useCases : existing.useCases,
     runConfig: patch.runConfig !== undefined ? patch.runConfig : existing.runConfig,
