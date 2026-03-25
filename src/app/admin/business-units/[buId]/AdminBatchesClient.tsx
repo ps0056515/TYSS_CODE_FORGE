@@ -171,7 +171,7 @@ export function AdminBatchesClient({
                             .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
                             .then(({ ok, d }) => {
                               if (ok && d.ok) load();
-                              else alert(d.error || "Delete blocked");
+                              else alert(d.error ? String(d.error) : "Cannot delete batch. Check that it has no students, assignments, or materials.");
                             })
                             .finally(() => setDeletingId(null));
                         }}

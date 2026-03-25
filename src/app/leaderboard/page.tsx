@@ -29,11 +29,11 @@ export default async function LeaderboardPage() {
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4 mt-8">
+      <div className="grid lg:grid-cols-3 gap-4 mt-8 items-start">
         <Card className="p-5 lg:col-span-2">
           <div className="text-sm font-semibold">Global</div>
           <p className="text-xs text-muted mt-1">Ranked by successful completions. Score = passed challenges / total attempts.</p>
-          <div className="mt-3 overflow-x-auto">
+          <div className="mt-3 overflow-x-auto max-h-[640px] overflow-y-auto pr-1">
             <table className="w-full text-sm">
               <thead className="text-muted">
                 <tr>
@@ -69,9 +69,9 @@ export default async function LeaderboardPage() {
           </div>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-5 h-[640px] flex flex-col">
           <div className="text-sm font-semibold">Problems</div>
-          <div className="mt-3 max-h-[560px] overflow-y-auto pr-1">
+          <div className="mt-3 overflow-y-auto pr-1 flex-1 min-h-0">
             <div className="grid gap-2">
               {problems.map((p) => (
                 <a

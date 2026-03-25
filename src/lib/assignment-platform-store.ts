@@ -15,6 +15,7 @@ const ORGS_FILE = path.join(DATA_DIR, "organizations.json");
 const BUS_FILE = path.join(DATA_DIR, "business-units.json");
 const BATCHES_FILE = path.join(DATA_DIR, "batches.json");
 const BATCH_MEMBERS_FILE = path.join(DATA_DIR, "batch-members.json");
+const BATCH_JOIN_CODES_FILE = path.join(DATA_DIR, "batch-join-codes.json");
 const ASSIGNMENTS_FILE = path.join(DATA_DIR, "assignments.json");
 const ENROLMENTS_FILE = path.join(DATA_DIR, "enrolments.json");
 const MATERIALS_FILE = path.join(DATA_DIR, "materials.json");
@@ -47,6 +48,11 @@ function slugify(s: string): string {
 
 function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function newJoinCode(): string {
+  // shorter, URL-safe, hard to guess
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.toLowerCase();
 }
 
 async function readJson<T>(file: string, defaultVal: T): Promise<T> {
@@ -121,7 +127,7 @@ export async function updateOrganization(id: string, patch: { name: string }): P
 export async function deleteOrganization(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const bus = await readJson<BusinessUnit[]>(BUS_FILE, []);
   if (bus.some((b) => b.organizationId === id)) {
-    return { ok: false, error: "Cannot delete: organization has business units." };
+    return { ok: false, error: "Cannot delete Organization: it still has Business Units. Delete/move BUs first." };
   }
   const orgs = await listOrganizations();
   const filtered = orgs.filter((o) => o.id !== id);
@@ -174,7 +180,7 @@ export async function updateBusinessUnit(id: string, patch: { name: string }): P
 export async function deleteBusinessUnit(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const batches = await readJson<Batch[]>(BATCHES_FILE, []);
   if (batches.some((b) => b.businessUnitId === id)) {
-    return { ok: false, error: "Cannot delete: business unit has batches." };
+    return { ok: false, error: "Cannot delete Business Unit: it still has Batches. Delete/move batches first." };
   }
   const list = await readJson<BusinessUnit[]>(BUS_FILE, []);
   const filtered = list.filter((b) => b.id !== id);
@@ -261,6 +267,41 @@ export async function deleteBatch(id: string): Promise<{ ok: true } | { ok: fals
   if (filtered.length === batches.length) return { ok: false, error: "Not found" };
   await writeJson(BATCHES_FILE, filtered);
   return { ok: true };
+}
+
+// --- Batch join links (self-enrollment)
+type BatchJoinCodes = Record<string, { batchId: string; createdAt: string }>;
+
+async function readBatchJoinCodes(): Promise<BatchJoinCodes> {
+  return await readJson<BatchJoinCodes>(BATCH_JOIN_CODES_FILE, {});
+}
+
+export async function getOrCreateBatchJoinCode(batchId: string): Promise<string> {
+  const codes = await readBatchJoinCodes();
+  const existing = Object.entries(codes).find(([, v]) => v.batchId === batchId)?.[0];
+  if (existing) return existing;
+  let code = newJoinCode();
+  while (codes[code]) code = newJoinCode();
+  codes[code] = { batchId, createdAt: new Date().toISOString() };
+  await writeJson(BATCH_JOIN_CODES_FILE, codes);
+  return code;
+}
+
+export async function rotateBatchJoinCode(batchId: string): Promise<string> {
+  const codes = await readBatchJoinCodes();
+  for (const [code, v] of Object.entries(codes)) {
+    if (v.batchId === batchId) delete codes[code];
+  }
+  let code = newJoinCode();
+  while (codes[code]) code = newJoinCode();
+  codes[code] = { batchId, createdAt: new Date().toISOString() };
+  await writeJson(BATCH_JOIN_CODES_FILE, codes);
+  return code;
+}
+
+export async function resolveBatchIdByJoinCode(code: string): Promise<string | null> {
+  const codes = await readBatchJoinCodes();
+  return codes[code]?.batchId ?? null;
 }
 
 // --- Batch members (enrollment at batch level; members inherit access to batch assignments)

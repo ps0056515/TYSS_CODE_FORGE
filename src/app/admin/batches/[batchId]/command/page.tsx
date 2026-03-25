@@ -27,6 +27,7 @@ import {
   Grid3X3,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 export default async function BatchCommandCenterPage({
   params,
@@ -188,7 +189,7 @@ export default async function BatchCommandCenterPage({
             </div>
           </div>
           <p className="text-sm text-muted">
-            {current ? new Date(current.dueAt).toLocaleString() : "Create an assignment"}
+            {current ? formatDateTimeIST(current.dueAt) : "Create an assignment"}
           </p>
         </DashboardCard>
 
@@ -291,7 +292,7 @@ export default async function BatchCommandCenterPage({
                   >
                     <span className="font-medium text-text truncate">{e.user}</span>
                     <span className="text-xs text-muted shrink-0">
-                      {e.problemSlug} · {new Date(e.createdAt).toLocaleTimeString()}
+                      {e.problemSlug} · {formatDateTimeIST(e.createdAt, { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </li>
                 ))}
@@ -321,7 +322,7 @@ export default async function BatchCommandCenterPage({
                         <p className="text-xs text-muted mt-0.5">{r.reasons.join(", ")}</p>
                         <p className="text-xs text-muted mt-0.5">
                           {r.progress ? `${r.progress.solved}/${r.progress.total}` : "—"} ·{" "}
-                          {r.progress?.lastAt ? new Date(r.progress.lastAt).toLocaleDateString() : "—"}
+                          {r.progress?.lastAt ? formatDateTimeIST(r.progress.lastAt, { dateStyle: "medium" }) : "—"}
                         </p>
                       </div>
                       <Link

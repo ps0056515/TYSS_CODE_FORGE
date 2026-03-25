@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 type Item = {
   assignment: { id: string; title: string; dueAt: string; description: string; kind?: "assignment" | "assessment" };
@@ -103,7 +104,7 @@ export function AssignmentsListClient({
       clearTimeout(hardStopId);
       controller.abort();
     };
-  }, []);
+  }, [kind]);
 
   if (needsSignIn) {
     return (
@@ -159,7 +160,7 @@ export function AssignmentsListClient({
                   <span className="font-medium">{assignment.title}</span>
                   {batch && <span className="text-xs text-muted ml-2">· {batch.name}</span>}
                   <p className="text-xs text-muted mt-1">
-                    Due {new Date(assignment.dueAt).toLocaleString()}
+                    Due {formatDateTimeIST(assignment.dueAt)}
                     {enrolment.repoUrl && (
                       <span className="ml-2">
                         ·{" "}

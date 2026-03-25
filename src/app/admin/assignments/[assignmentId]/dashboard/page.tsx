@@ -26,6 +26,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 export default async function AssignmentDashboardPage({
   params,
@@ -137,7 +138,7 @@ export default async function AssignmentDashboardPage({
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-text md:text-3xl">{assignment.title}</h1>
         {batch && (
           <p className="mt-1 text-sm text-muted">
-            {batch.name} · Due {new Date(assignment.dueAt).toLocaleString()}
+            {batch.name} · Due {formatDateTimeIST(assignment.dueAt)}
           </p>
         )}
       </header>
@@ -227,10 +228,10 @@ export default async function AssignmentDashboardPage({
                                 {solved}/{total}
                               </span>
                             </td>
-                            <td className="p-4 text-muted">{p?.lastAt ? new Date(p.lastAt).toLocaleString() : "—"}</td>
+                            <td className="p-4 text-muted">{p?.lastAt ? formatDateTimeIST(p.lastAt) : "—"}</td>
                           </>
                         )}
-                        <td className="p-4 text-muted">{new Date(e.joinedAt).toLocaleString()}</td>
+                        <td className="p-4 text-muted">{formatDateTimeIST(e.joinedAt)}</td>
                         <td className="p-4">
                           {e.repoUrl ? (
                             <a

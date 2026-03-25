@@ -5,6 +5,7 @@ import { getUserAsync } from "@/lib/auth";
 import { getProgressForUser, listAllSubmissions } from "@/lib/submissions";
 import { listMyAssignments } from "@/lib/assignment-platform-store";
 import { computeCodingProgressForUser } from "@/lib/dashboard-metrics";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 type SubRow = {
   id: string;
@@ -160,7 +161,7 @@ export default async function ProfilePage() {
                       const v = verdictOf(r);
                       return (
                         <tr key={r.id} className="border-t border-border">
-                          <td className="py-2 text-muted">{new Date(r.createdAt).toLocaleString()}</td>
+                          <td className="py-2 text-muted">{formatDateTimeIST(r.createdAt)}</td>
                           <td className="py-2">
                             <a className="underline" href={`/practice/${r.problemSlug}`}>
                               {solvedTitles.get(r.problemSlug) ?? r.problemSlug}

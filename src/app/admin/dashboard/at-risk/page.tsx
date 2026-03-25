@@ -6,6 +6,7 @@ import { loadAllSubmissionsCached } from "@/lib/dashboard-metrics";
 import { getAtRiskStudentsList } from "@/lib/dashboard-lists";
 import { DashboardCard } from "@/components/dashboard";
 import { ArrowLeft, AlertTriangle, ChevronRight } from "lucide-react";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 export default async function AtRiskStudentsPage() {
   const user = await getUserAsync();
@@ -85,7 +86,7 @@ export default async function AtRiskStudentsPage() {
                     </td>
                     <td className="p-4 text-right tabular-nums">{row.solved}/{row.total}</td>
                     <td className="p-4 text-muted">
-                      {row.lastAt ? new Date(row.lastAt).toLocaleString() : "—"}
+                      {row.lastAt ? formatDateTimeIST(row.lastAt) : "—"}
                     </td>
                     <td className="p-4">
                       <Link

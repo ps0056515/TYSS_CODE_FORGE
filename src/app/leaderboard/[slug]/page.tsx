@@ -33,7 +33,7 @@ export default async function ProblemLeaderboardPage({ params }: { params: { slu
 
       <Card className="p-5 mt-8">
         <p className="text-xs text-muted mb-3">Score = passed submissions / total attempts for this problem.</p>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[680px] overflow-y-auto pr-1">
           <table className="w-full text-sm">
             <thead className="text-muted">
               <tr>

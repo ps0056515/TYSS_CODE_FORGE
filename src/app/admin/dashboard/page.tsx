@@ -9,6 +9,7 @@ import {
 } from "@/lib/assignment-platform-store";
 import { loadAllSubmissionsCached, isAtRiskRuleBased } from "@/lib/dashboard-metrics";
 import { listEnrolments } from "@/lib/assignment-platform-store";
+import { formatDateTimeIST } from "@/lib/datetime";
 import {
   DashboardKpiCard,
   DashboardSection,
@@ -54,6 +55,18 @@ export default async function AdminDashboardPage() {
   const subs = await loadAllSubmissionsCached();
   const nowIso = new Date().toISOString();
 
+  const subsIndex = (() => {
+    const byUser = new Map<string, { lastAt?: string; bestBySlug: Map<string, number> }>();
+    for (const s of subs) {
+      const curr = byUser.get(s.user) ?? { bestBySlug: new Map<string, number>(), lastAt: undefined };
+      const prev = curr.bestBySlug.get(s.problemSlug) ?? -1;
+      if (s.score > prev) curr.bestBySlug.set(s.problemSlug, s.score);
+      if (!curr.lastAt || s.createdAt > curr.lastAt) curr.lastAt = s.createdAt;
+      byUser.set(s.user, curr);
+    }
+    return byUser;
+  })();
+
   const active7d = (() => {
     const since = Date.now() - 7 * 24 * 3600 * 1000;
     const set = new Set<string>();
@@ -76,15 +89,9 @@ export default async function AdminDashboardPage() {
     const slugs = a.codingSet.problemSlugs;
     const threshold = a.codingSet.completionScoreThreshold ?? 100;
     for (const e of enrol) {
-      const best = new Map<string, number>();
-      let lastAt: string | undefined;
-      for (const s of subs) {
-        if (s.user !== e.userId) continue;
-        if (!slugs.includes(s.problemSlug)) continue;
-        const prev = best.get(s.problemSlug) ?? -1;
-        if (s.score > prev) best.set(s.problemSlug, s.score);
-        if (!lastAt || s.createdAt > lastAt) lastAt = s.createdAt;
-      }
+      const userIdx = subsIndex.get(e.userId);
+      const best = userIdx?.bestBySlug ?? new Map<string, number>();
+      const lastAt = userIdx?.lastAt;
       let solved = 0;
       for (const slug of slugs) {
         const sc = best.get(slug) ?? -1;
@@ -298,7 +305,7 @@ export default async function AdminDashboardPage() {
                     <h3 className="font-semibold text-text truncate">{a.title}</h3>
                     <p className="text-sm text-muted mt-0.5">
                       {batchById.get(a.batchId)?.name && <span className="text-muted">{batchById.get(a.batchId)?.name} · </span>}
-                      Due {new Date(a.dueAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                      Due {formatDateTimeIST(a.dueAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">

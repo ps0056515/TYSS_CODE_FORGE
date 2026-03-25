@@ -8,6 +8,7 @@ import { DashboardKpiCard, DashboardSection, DashboardCard, ProgressBar } from "
 import { verdictLabel, verdictColorClass } from "@/lib/verdicts";
 import { User, ListTodo, Activity, ArrowLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 export default async function AdminStudentProfilePage({
   params,
@@ -116,7 +117,7 @@ export default async function AdminStudentProfilePage({
             <p className="text-xs font-medium uppercase tracking-widest text-muted">Student report</p>
             <h1 className="mt-1 text-xl font-bold tracking-tight text-text break-all md:text-2xl">{decodedId}</h1>
             <p className="mt-1 text-sm text-muted">
-              Last activity: {lastActivity ? new Date(lastActivity).toLocaleString() : "—"}
+              Last activity: {lastActivity ? formatDateTimeIST(lastActivity) : "—"}
               {atRiskCount > 0 && (
                 <>
                   {" "}
@@ -225,7 +226,7 @@ export default async function AdminStudentProfilePage({
                           <div className="text-xs text-muted">{r.assignment.type ?? "general"}</div>
                         </td>
                         <td className="p-4 text-muted">{r.batch?.name ?? "—"}</td>
-                        <td className="p-4 text-muted">{new Date(r.assignment.dueAt).toLocaleString()}</td>
+                        <td className="p-4 text-muted">{formatDateTimeIST(r.assignment.dueAt)}</td>
                         <td className="p-4">
                           {r.assignment.type === "coding_set" && r.prog ? (
                             <span
@@ -304,7 +305,7 @@ export default async function AdminStudentProfilePage({
                     {verdictLabel(s.verdict)}
                   </span>
                   <span className="text-xs text-muted tabular-nums">{s.score}</span>
-                  <span className="text-xs text-muted">{new Date(s.createdAt).toLocaleString()}</span>
+                  <span className="text-xs text-muted">{formatDateTimeIST(s.createdAt)}</span>
                 </li>
               ))}
             </ul>

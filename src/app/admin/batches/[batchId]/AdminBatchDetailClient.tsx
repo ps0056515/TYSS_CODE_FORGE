@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, Button } from "@/components/ui";
 
-type Assignment = { id: string; title: string; slug: string; dueAt: string };
+type Assignment = { id: string; title: string; slug: string; dueAt: string; kind?: "assignment" | "assessment" };
 type Material = { id: string; title: string; type: string; contentOrUrl: string; day?: number; order: number };
 type BatchMember = { id: string; batchId: string; userId: string; joinedAt: string };
 
@@ -13,6 +13,9 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
   const [membersLoading, setMembersLoading] = React.useState(true);
   const [newUserId, setNewUserId] = React.useState("");
   const [addMemberSubmitting, setAddMemberSubmitting] = React.useState(false);
+  const [joinLink, setJoinLink] = React.useState<string | null>(null);
+  const [joinLinkLoading, setJoinLinkLoading] = React.useState(true);
+  const [joinLinkRotating, setJoinLinkRotating] = React.useState(false);
   const [assignments, setAssignments] = React.useState<Assignment[]>([]);
   const [materials, setMaterials] = React.useState<Material[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -32,7 +35,7 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
 
   const loadMembers = React.useCallback(() => {
     setMembersLoading(true);
-    fetch(`/api/batches/${encodeURIComponent(batchId)}/members`)
+    fetch(`/api/batches/${encodeURIComponent(batchId)}/members`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d?.ok && Array.isArray(d.items)) setMembers(d.items);
@@ -40,11 +43,21 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
       .finally(() => setMembersLoading(false));
   }, [batchId]);
 
+  const loadJoinLink = React.useCallback(() => {
+    setJoinLinkLoading(true);
+    fetch(`/api/batches/${encodeURIComponent(batchId)}/join-link`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.ok && typeof d.joinUrl === "string") setJoinLink(d.joinUrl);
+      })
+      .finally(() => setJoinLinkLoading(false));
+  }, [batchId]);
+
   const load = React.useCallback(() => {
     setLoading(true);
     Promise.all([
-      fetch(`/api/assignments?batchId=${encodeURIComponent(batchId)}`).then((r) => r.json()),
-      fetch(`/api/materials?batchId=${encodeURIComponent(batchId)}`).then((r) => r.json()),
+      fetch(`/api/assignments?batchId=${encodeURIComponent(batchId)}`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`/api/materials?batchId=${encodeURIComponent(batchId)}`, { cache: "no-store" }).then((r) => r.json()),
     ]).then(([a, m]) => {
       if (a.ok) setAssignments(a.items);
       if (m.ok) setMaterials(m.items);
@@ -57,6 +70,9 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
   React.useEffect(() => {
     loadMembers();
   }, [loadMembers]);
+  React.useEffect(() => {
+    loadJoinLink();
+  }, [loadJoinLink]);
 
   const onAddMember = (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +186,60 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
           Students added here are automatically enrolled in all assignments in this batch. They will see the batch assignments under Assignments / Assessments.
         </p>
         <Card className="p-4 max-w-2xl mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">Self-enrollment link</div>
+              <div className="text-sm text-muted mt-1">
+                Share this link with candidates so they can join <span className="text-text">{batchName}</span> themselves.
+              </div>
+              <div className="mt-2 text-sm break-all">
+                {joinLinkLoading ? (
+                  <span className="text-muted">Loading…</span>
+                ) : joinLink ? (
+                  <a className="text-brand hover:underline" href={joinLink} target="_blank" rel="noreferrer">
+                    {joinLink}
+                  </a>
+                ) : (
+                  <span className="text-muted">Unavailable</span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!joinLink}
+                onClick={async () => {
+                  if (!joinLink) return;
+                  try {
+                    await navigator.clipboard.writeText(joinLink);
+                  } catch {
+                    // ignore
+                  }
+                }}
+              >
+                Copy link
+              </Button>
+              <Button
+                type="button"
+                disabled={joinLinkRotating}
+                onClick={() => {
+                  setJoinLinkRotating(true);
+                  fetch(`/api/batches/${encodeURIComponent(batchId)}/join-link`, { method: "POST" })
+                    .then((r) => r.json())
+                    .then((d) => {
+                      if (d?.ok && typeof d.joinUrl === "string") setJoinLink(d.joinUrl);
+                      else alert(d.error || "Failed to rotate");
+                    })
+                    .finally(() => setJoinLinkRotating(false));
+                }}
+              >
+                {joinLinkRotating ? "Rotating…" : "Rotate"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4 max-w-2xl mb-4">
           <form onSubmit={onAddMember} className="flex flex-wrap items-end gap-3">
             <label className="flex-1 min-w-[200px]">
               <span className="block text-xs text-muted mb-1">Email or username</span>
@@ -217,9 +287,33 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
       </section>
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold mb-3">Assignments</h2>
+        <h2 className="text-lg font-semibold mb-3">Assignments & assessments</h2>
         <Card className="p-4 max-w-2xl mb-4">
           <form onSubmit={onCreateAssignment} className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAssignKind("assignment")}
+                className={`px-3 py-1.5 rounded-lg border text-xs ${
+                  assignKind === "assignment"
+                    ? "border-brand/50 bg-brand/10 text-text"
+                    : "border-border text-muted hover:text-text hover:bg-white/5"
+                }`}
+              >
+                Add assignment
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssignKind("assessment")}
+                className={`px-3 py-1.5 rounded-lg border text-xs ${
+                  assignKind === "assessment"
+                    ? "border-brand/50 bg-brand/10 text-text"
+                    : "border-border text-muted hover:text-text hover:bg-white/5"
+                }`}
+              >
+                Add assessment
+              </button>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
                 <span className="block text-xs text-muted mb-1">Kind</span>
@@ -288,7 +382,7 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
               />
             </label>
             <Button type="submit" disabled={assignSubmitting}>
-              {assignSubmitting ? "Adding…" : "Add assignment"}
+              {assignSubmitting ? "Adding…" : `Add ${assignKind}`}
             </Button>
           </form>
         </Card>
@@ -304,7 +398,9 @@ export function AdminBatchDetailClient({ batchId, batchName }: { batchId: string
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="font-medium truncate">{a.title}</div>
-                      <div className="text-xs text-muted mt-1">Due {new Date(a.dueAt).toLocaleString()}</div>
+                      <div className="text-xs text-muted mt-1">
+                        {a.kind === "assessment" ? "Assessment" : "Assignment"} · Due {new Date(a.dueAt).toLocaleString()}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <Link href={`/admin/assignments/${a.id}/edit`} className="text-xs text-muted hover:text-text underline">

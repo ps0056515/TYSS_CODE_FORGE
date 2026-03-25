@@ -120,25 +120,22 @@ export function AdminProblemsClient() {
                     >
                       View
                     </Link>
-                    {isCustom && (
-                      <>
-                        <Link
-                          href={`/admin/problems/${encodeURIComponent(p.slug)}/edit`}
-                          className="text-xs text-brand hover:underline"
-                        >
-                          Edit
-                        </Link>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="text-xs text-rose-400 hover:text-rose-300"
-                          disabled={deleting === p.slug}
-                          onClick={() => handleDelete(p.slug)}
-                        >
-                          {deleting === p.slug ? "…" : "Remove"}
-                        </Button>
-                      </>
-                    )}
+                    <Link
+                      href={`/admin/problems/${encodeURIComponent(p.slug)}/edit`}
+                      className="text-xs text-brand hover:underline"
+                    >
+                      Edit
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-xs text-rose-400 hover:text-rose-300"
+                      disabled={!isCustom || deleting === p.slug}
+                      onClick={() => handleDelete(p.slug)}
+                      title={isCustom ? "Remove custom problem" : "Built-in problems cannot be removed"}
+                    >
+                      {deleting === p.slug ? "…" : "Remove"}
+                    </Button>
                   </div>
                 </div>
               </Card>

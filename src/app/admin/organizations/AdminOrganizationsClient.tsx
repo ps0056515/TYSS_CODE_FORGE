@@ -125,7 +125,7 @@ export function AdminOrganizationsClient() {
                             .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
                             .then(({ ok, d }) => {
                               if (ok && d.ok) load();
-                              else alert(d.error || "Delete blocked");
+                              else alert(d.error ? String(d.error) : "Cannot delete organization. Check that it has no business units.");
                             })
                             .finally(() => setDeletingId(null));
                         }}

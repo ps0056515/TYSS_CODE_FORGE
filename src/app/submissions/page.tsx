@@ -2,6 +2,7 @@ import { Container, Card } from "@/components/ui";
 import { problems } from "@/lib/data";
 import { verdictLabel, verdictColorClass } from "@/lib/verdicts";
 import { headers } from "next/headers";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 type Row = {
   id: string;
@@ -65,7 +66,7 @@ export default async function SubmissionsPage() {
                   const v = verdictOf(r);
                   return (
                     <tr key={r.id} className="border-t border-border">
-                      <td className="py-2 text-muted">{new Date(r.createdAt).toLocaleString()}</td>
+                      <td className="py-2 text-muted">{formatDateTimeIST(r.createdAt)}</td>
                       <td className="py-2 font-semibold">{r.user}</td>
                       <td className="py-2">
                         <a className="underline" href={`/practice/${r.problemSlug}`}>

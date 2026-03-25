@@ -16,6 +16,7 @@ export function computeCodingProgressForUser(
 ): StudentCodingProgress | null {
   if (assignment.type !== "coding_set") return null;
   const slugs = assignment.codingSet?.problemSlugs ?? [];
+  const slugSet = new Set(slugs);
   const total = slugs.length;
   if (!total) return { solved: 0, total: 0, bestBySlug: {} };
   const threshold = assignment.codingSet?.completionScoreThreshold ?? 100;
@@ -25,7 +26,7 @@ export function computeCodingProgressForUser(
 
   for (const s of submissions) {
     if (s.user !== userId) continue;
-    if (!slugs.includes(s.problemSlug)) continue;
+    if (!slugSet.has(s.problemSlug)) continue;
     const prev = bestBySlug.get(s.problemSlug) ?? -1;
     if (s.score > prev) bestBySlug.set(s.problemSlug, s.score);
     if (!lastAt || s.createdAt > lastAt) lastAt = s.createdAt;

@@ -52,9 +52,6 @@ export async function PATCH(
   if (!isAdminUser(user)) return NextResponse.json({ ok: false, stderr: "Admins only" }, { status: 403 });
 
   const { slug } = await params;
-  const custom = await isCustomProblem(slug);
-  if (!custom) return NextResponse.json({ ok: false, stderr: "Built-in problems cannot be edited" }, { status: 400 });
-
   try {
     const json = await req.json();
     const parsed = PatchSchema.safeParse(json);

@@ -6,6 +6,7 @@ import { loadAllSubmissionsCached } from "@/lib/dashboard-metrics";
 import { getOverdueStudentsList } from "@/lib/dashboard-lists";
 import { DashboardCard } from "@/components/dashboard";
 import { ArrowLeft, Clock, ChevronRight } from "lucide-react";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 export default async function OverdueStudentsPage() {
   const user = await getUserAsync();
@@ -77,7 +78,7 @@ export default async function OverdueStudentsPage() {
                   >
                     <td className="p-4 font-medium text-text">{row.userId}</td>
                     <td className="p-4 text-muted">{row.assignmentTitle}</td>
-                    <td className="p-4 text-muted">{new Date(row.dueAt).toLocaleString()}</td>
+                    <td className="p-4 text-muted">{formatDateTimeIST(row.dueAt)}</td>
                     <td className="p-4 text-right tabular-nums">
                       <span className="text-amber-600 dark:text-amber-400 font-medium">
                         {row.solved}/{row.total}

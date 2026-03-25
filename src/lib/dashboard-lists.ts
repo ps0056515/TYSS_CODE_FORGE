@@ -3,6 +3,26 @@ import type { Submission } from "@/lib/submissions";
 import { listEnrolments } from "@/lib/assignment-platform-store";
 import { isAtRiskRuleBased } from "@/lib/dashboard-metrics";
 
+type SubmissionIndex = Map<
+  string,
+  {
+    lastAt?: string;
+    bestBySlug: Map<string, number>;
+  }
+>;
+
+function buildSubmissionIndex(subs: Submission[]): SubmissionIndex {
+  const byUser: SubmissionIndex = new Map();
+  for (const s of subs) {
+    const curr = byUser.get(s.user) ?? { bestBySlug: new Map<string, number>(), lastAt: undefined };
+    const prev = curr.bestBySlug.get(s.problemSlug) ?? -1;
+    if (s.score > prev) curr.bestBySlug.set(s.problemSlug, s.score);
+    if (!curr.lastAt || s.createdAt > curr.lastAt) curr.lastAt = s.createdAt;
+    byUser.set(s.user, curr);
+  }
+  return byUser;
+}
+
 export type ActiveLearnerRow = {
   userId: string;
   lastActivity: string;
@@ -54,6 +74,7 @@ export async function getOverdueStudentsList(
 ): Promise<OverdueStudentRow[]> {
   const nowIso = new Date().toISOString();
   const rows: OverdueStudentRow[] = [];
+  const index = buildSubmissionIndex(subs);
   for (const a of assignments) {
     if (a.type !== "coding_set" || !(a.codingSet?.problemSlugs?.length)) continue;
     if (nowIso <= a.dueAt) continue;
@@ -61,12 +82,7 @@ export async function getOverdueStudentsList(
     const threshold = a.codingSet.completionScoreThreshold ?? 100;
     const enrolments = await listEnrolments(a.id);
     for (const e of enrolments) {
-      const best = new Map<string, number>();
-      for (const s of subs) {
-        if (s.user !== e.userId || !slugs.includes(s.problemSlug)) continue;
-        const prev = best.get(s.problemSlug) ?? -1;
-        if (s.score > prev) best.set(s.problemSlug, s.score);
-      }
+      const best = index.get(e.userId)?.bestBySlug ?? new Map<string, number>();
       let solved = 0;
       for (const slug of slugs) {
         if ((best.get(slug) ?? -1) >= threshold) solved++;
@@ -93,20 +109,16 @@ export async function getAtRiskStudentsList(
 ): Promise<AtRiskStudentRow[]> {
   const nowIso = new Date().toISOString();
   const rows: AtRiskStudentRow[] = [];
+  const index = buildSubmissionIndex(subs);
   for (const a of assignments) {
     if (a.type !== "coding_set" || !(a.codingSet?.problemSlugs?.length)) continue;
     const slugs = a.codingSet.problemSlugs;
     const threshold = a.codingSet.completionScoreThreshold ?? 100;
     const enrolments = await listEnrolments(a.id);
     for (const e of enrolments) {
-      const best = new Map<string, number>();
-      let lastAt: string | undefined;
-      for (const s of subs) {
-        if (s.user !== e.userId || !slugs.includes(s.problemSlug)) continue;
-        const prev = best.get(s.problemSlug) ?? -1;
-        if (s.score > prev) best.set(s.problemSlug, s.score);
-        if (!lastAt || s.createdAt > lastAt) lastAt = s.createdAt;
-      }
+      const userIdx = index.get(e.userId);
+      const best = userIdx?.bestBySlug ?? new Map<string, number>();
+      const lastAt = userIdx?.lastAt;
       let solved = 0;
       for (const slug of slugs) {
         if ((best.get(slug) ?? -1) >= threshold) solved++;

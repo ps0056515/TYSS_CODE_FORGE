@@ -5,6 +5,7 @@ import { loadAllSubmissionsCached } from "@/lib/dashboard-metrics";
 import { getActiveLearnersList } from "@/lib/dashboard-lists";
 import { DashboardCard } from "@/components/dashboard";
 import { ArrowLeft, Users, ChevronRight } from "lucide-react";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 export default async function ActiveLearnersPage() {
   const user = await getUserAsync();
@@ -72,7 +73,7 @@ export default async function ActiveLearnersPage() {
                     className="border-b border-border last:border-0 hover:bg-black/5 dark:hover:bg-white/5 transition"
                   >
                     <td className="p-4 font-medium text-text">{row.userId}</td>
-                    <td className="p-4 text-muted">{new Date(row.lastActivity).toLocaleString()}</td>
+                    <td className="p-4 text-muted">{formatDateTimeIST(row.lastActivity)}</td>
                     <td className="p-4 text-right tabular-nums">{row.submissionCount}</td>
                     <td className="p-4">
                       <Link

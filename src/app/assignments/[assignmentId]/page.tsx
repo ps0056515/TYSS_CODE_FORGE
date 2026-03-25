@@ -5,6 +5,7 @@ import { listAllSubmissions } from "@/lib/submissions";
 import { getProblemBySlug } from "@/lib/problems_store";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 export default async function AssignmentDetailPage({
   params,
@@ -59,10 +60,10 @@ export default async function AssignmentDetailPage({
       </div>
       <h1 className="text-2xl font-extrabold">{assignment.title}</h1>
       {batch && <p className="text-sm text-muted mt-1">{batch.name} · {batch.skill}</p>}
-      <p className="text-sm text-muted mt-1">Due: {new Date(assignment.dueAt).toLocaleString()}</p>
+      <p className="text-sm text-muted mt-1">Due: {formatDateTimeIST(assignment.dueAt)}</p>
       {(assignment.startAt || assignment.endAt) && (
         <p className="text-sm text-muted mt-1">
-          Available: {assignment.startAt ? new Date(assignment.startAt).toLocaleString() : "now"} – {assignment.endAt ? new Date(assignment.endAt).toLocaleString() : new Date(assignment.dueAt).toLocaleString()}
+          Available: {assignment.startAt ? formatDateTimeIST(assignment.startAt) : "now"} – {assignment.endAt ? formatDateTimeIST(assignment.endAt) : formatDateTimeIST(assignment.dueAt)}
         </p>
       )}
       {assignment.description && (

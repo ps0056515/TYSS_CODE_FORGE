@@ -144,8 +144,13 @@ export async function updateProblem(
   patch: Partial<CustomProblemInput> & { statement?: string; examples?: Problem["examples"] }
 ): Promise<Problem | null> {
   const custom = await readCustom();
-  const idx = custom.findIndex((p) => p.slug === slug);
-  if (idx < 0) return null;
+  let idx = custom.findIndex((p) => p.slug === slug);
+  if (idx < 0) {
+    const builtIn = builtInProblems.find((p) => p.slug === slug);
+    if (!builtIn) return null;
+    custom.push(builtIn);
+    idx = custom.length - 1;
+  }
   const existing = custom[idx];
   const updated: Problem = {
     ...existing,

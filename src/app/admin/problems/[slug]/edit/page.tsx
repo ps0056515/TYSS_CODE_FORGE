@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProblemBySlug, isCustomProblem } from "@/lib/problems_store";
+import { getProblemBySlug } from "@/lib/problems_store";
 import { AdminProblemEditClient } from "./AdminProblemEditClient";
 
 export default async function AdminProblemEditPage({
@@ -8,7 +8,7 @@ export default async function AdminProblemEditPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [problem, custom] = await Promise.all([getProblemBySlug(slug), isCustomProblem(slug)]);
-  if (!problem || !custom) notFound();
+  const problem = await getProblemBySlug(slug);
+  if (!problem) notFound();
   return <AdminProblemEditClient slug={slug} initialProblem={problem} />;
 }

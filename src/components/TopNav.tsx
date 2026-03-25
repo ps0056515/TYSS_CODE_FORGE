@@ -35,6 +35,7 @@ export function TopNav({ className }: { className?: string }) {
   const [meUser, setMeUser] = React.useState<string | null>(null);
   const [mounted, setMounted] = React.useState(false);
   const [moreOpen, setMoreOpen] = React.useState(false);
+  const moreRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => setMounted(true), []);
   React.useEffect(() => {
     fetch("/api/auth/me")
@@ -49,6 +50,17 @@ export function TopNav({ className }: { className?: string }) {
     (session?.user as { name?: string; email?: string } | undefined)?.email ||
     meUser ||
     null;
+
+  React.useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const el = moreRef.current;
+      if (!el) return;
+      if (e.target instanceof Node && !el.contains(e.target)) setMoreOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [moreOpen]);
 
   return (
     <header className={cn("sticky top-0 z-50 border-b border-border bg-bg/80 backdrop-blur-md w-full", className)}>
@@ -71,7 +83,7 @@ export function TopNav({ className }: { className?: string }) {
           aria-label="Main navigation"
         >
           {nav
-            .filter((n) => ["/practice", "/assignments", "/assessments", "/compiler"].includes(n.href))
+            .filter((n) => ["/practice", "/assignments", "/assessments", "/compiler", "/leaderboard"].includes(n.href))
             .filter((n) => !(isSignedIn && n.href === "/profile"))
             .map((n) => {
               const Icon = n.icon;
@@ -98,7 +110,7 @@ export function TopNav({ className }: { className?: string }) {
             })}
 
           {/* More dropdown for less-frequent links */}
-          <div className="relative ml-1">
+          <div className="relative ml-1" ref={moreRef}>
             <button
               type="button"
               onClick={() => setMoreOpen((v) => !v)}
@@ -113,12 +125,11 @@ export function TopNav({ className }: { className?: string }) {
             {moreOpen && (
               <div
                 className="absolute right-0 mt-1 min-w-[180px] rounded-xl border border-border bg-bg shadow-lg py-1 z-50"
-                onMouseLeave={() => setMoreOpen(false)}
               >
                 {nav
                   .filter(
                     (n) =>
-                      !["/practice", "/assignments", "/assessments", "/compiler"].includes(n.href)
+                      !["/practice", "/assignments", "/assessments", "/compiler", "/leaderboard"].includes(n.href)
                   )
                   .filter((n) => !(isSignedIn && n.href === "/profile"))
                   .map((n) => {
@@ -174,7 +185,7 @@ export function TopNav({ className }: { className?: string }) {
             {displayUser && (
               <Link
                 href="/profile"
-                className="hidden sm:flex items-center gap-2 rounded-lg px-3 py-2 border border-border bg-white/5 dark:bg-white/5 min-w-0 max-w-[150px] lg:max-w-[220px] hover:bg-white/10 hover:border-white/15 transition"
+                className="hidden lg:flex items-center gap-2 rounded-lg px-3 py-2 border border-border bg-white/5 dark:bg-white/5 min-w-0 max-w-[220px] hover:bg-white/10 hover:border-white/15 transition"
                 title={`Signed in as ${displayUser}`}
               >
                 <User className="h-4 w-4 shrink-0 text-muted" aria-hidden />
